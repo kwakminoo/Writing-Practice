@@ -43,7 +43,7 @@ export default function Navbar() {
   return (
     <nav className="w-full flex items-center justify-between px-4 py-3 bg-white/80 dark:bg-gray-900/80 shadow-sm sticky top-0 z-30 backdrop-blur">
       <div className="flex items-center gap-2">
-        <Link href="/" className="text-xl font-bold text-blue-700 dark:text-blue-300">글쓰기 연습소</Link>
+        <Link href="/" className="text-xl font-bold text-blue-700 dark:text-blue-300">글쓰기 훈련소</Link>
         <DarkModeToggleInline />
       </div>
       <ul className="flex gap-4 text-base font-medium">

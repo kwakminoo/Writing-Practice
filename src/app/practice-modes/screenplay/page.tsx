@@ -3,14 +3,16 @@ import { useState, useEffect, useRef } from "react";
 import WritingArea from "../../../components/WritingArea";
 import Link from "next/link";
 
+// 연습 방식 및 문제 프롬프트 정의
 const practiceTypes = [
-  { key: "roleplay", label: "상황극/역할극", desc: "특정 상황/캐릭터로 대화문 작성" },
-  { key: "scene", label: "장면 전환", desc: "주어진 상황에서 장면을 전환해 이어쓰기" },
-  { key: "dialogue", label: "대사 작성", desc: "캐릭터별로 자연스러운 대사 만들기" },
-  { key: "structure", label: "시나리오 구조화", desc: "기승전결, 3막 구조 등 시나리오 플롯 설계" },
-  { key: "desc", label: "장면 묘사", desc: "배경, 분위기, 동작 등 시각적으로 묘사" },
-  { key: "improv", label: "즉흥 시나리오", desc: "랜덤 프롬프트로 즉석에서 장면 만들기" },
-  { key: "genre", label: "장르 변환", desc: "같은 상황을 코미디/스릴러/멜로 등으로 변환" },
+  { key: "roleplay", label: "상황극/역할극", desc: "특정 상황/캐릭터로 대화문 작성", prompts: ["아래 상황에서 두 인물의 대화를 써보세요. ex) '면접장, 지원자와 면접관'", "역할을 정해 대화문을 창작해보세요. ex) '의사와 환자'",] },
+  { key: "scene", label: "장면 전환", desc: "주어진 상황에서 장면을 전환해 이어쓰기", prompts: ["아래 상황에서 장면이 전환되는 부분을 써보세요. ex) '카페에서 집으로'", "장면 전환을 활용해 이야기를 이어가보세요. ex) '밤에서 아침으로'",] },
+  { key: "dialogue", label: "대사 작성", desc: "캐릭터별로 자연스러운 대사 만들기", prompts: ["아래 상황에 어울리는 대사를 써보세요. ex) '이별하는 연인'", "두 인물의 감정이 드러나는 대사를 창작해보세요. ex) '오랜만에 만난 친구'",] },
+  { key: "structure", label: "시나리오 구조화", desc: "기승전결, 3막 구조 등 시나리오 플롯 설계", prompts: ["아래 주제로 3막 구조의 시나리오 개요를 써보세요. ex) '복수'", "기승전결이 뚜렷한 시나리오 플롯을 설계해보세요. ex) '우정'",] },
+  { key: "desc", label: "장면 묘사", desc: "배경, 분위기, 동작 등 시각적으로 묘사", prompts: ["아래 장면을 시각적으로 묘사해보세요. ex) '비 내리는 거리'", "배경과 인물의 동작을 묘사해보세요. ex) '도서관에서 책을 읽는 소녀'",] },
+  { key: "improv", label: "즉흥 시나리오", desc: "랜덤 프롬프트로 즉석에서 장면 만들기", prompts: ["아래 프롬프트로 즉흥 시나리오를 써보세요. ex) '정전된 도시'", "랜덤 상황으로 장면을 창작해보세요. ex) '길을 잃은 아이'",] },
+  { key: "genre", label: "장르 변환", desc: "같은 상황을 코미디/스릴러/멜로 등으로 변환", prompts: ["아래 상황을 코미디, 스릴러, 멜로 등 다양한 장르로 바꿔 써보세요. ex) '첫 만남'", "같은 장면을 여러 장르로 변환해보세요. ex) '이별'",] },
+  { key: "onesentence", label: "한 문장 시나리오", desc: "주제를 바탕으로 한 문장으로 시나리오 완성", prompts: ["아래 주제로 한 문장 시나리오를 써보세요. ex) '희생'", "키워드로 한 문장 시나리오를 완성해보세요. ex) '기회', '운명', '선택'"] },
 ];
 const dummyPracticeTypes = [
   { key: "roleplay", label: "상황극/역할극" },
@@ -63,7 +65,13 @@ export default function ScreenplayPractice() {
 
   const handleGetProblems = () => {
     const filtered = practiceTypes.filter(t => selectedTypes.includes(t.key));
-    setProblems(filtered.length > 0 ? filtered : practiceTypes.slice(0, 3));
+    if (filtered.length > 0) {
+      setProblems(filtered.map(type => ({ ...type, prompt: type.prompts[Math.floor(Math.random() * type.prompts.length)] })));
+    } else {
+      // 선택 없으면 8개 중 3개 랜덤
+      const shuffled = [...practiceTypes].sort(() => Math.random() - 0.5);
+      setProblems(shuffled.slice(0, 3).map(type => ({ ...type, prompt: type.prompts[Math.floor(Math.random() * type.prompts.length)] })));
+    }
     setSelectedProblemIdx(null);
   };
 
@@ -118,6 +126,7 @@ export default function ScreenplayPractice() {
               >
                 <div className="font-bold text-blue-700 dark:text-blue-300">{idx + 1}. {type.label}</div>
                 <div className="text-gray-700 dark:text-gray-200 text-sm mt-1">{type.desc}</div>
+                <div className="text-gray-600 dark:text-gray-300 text-sm mt-2 whitespace-pre-line">{String('prompt' in type ? type.prompt : type.prompts[0])}</div>
                 {selectedProblemIdx === idx && (
                   <div className="mt-2">
                     <WritingArea category={type.label} />

@@ -3,14 +3,17 @@ import { useState, useEffect, useRef } from "react";
 import WritingArea from "../../../components/WritingArea";
 import Link from "next/link";
 
+// 연습 방식 및 문제 프롬프트 정의
 const practiceTypes = [
-  { key: "topic", label: "주제 에세이", desc: "주어진 주제에 대해 자유롭게 에세이 작성" },
-  { key: "experience", label: "경험담", desc: "자신의 경험/일화 중심으로 글쓰기" },
-  { key: "logic", label: "논증/설득", desc: "주장, 근거, 반론 등 논리적으로 전개" },
-  { key: "expand", label: "요약/확장", desc: "짧은 글을 길게, 긴 글을 요약" },
-  { key: "quote", label: "인용문 활용", desc: "명언/책 구절 등 인용해 글 전개" },
-  { key: "review", label: "감상문", desc: "책, 영화, 음악 등 감상문 작성" },
-  { key: "metaphor", label: "비유/은유", desc: "비유적 표현을 활용한 에세이" },
+  { key: "topic", label: "주제 에세이", desc: "주어진 주제에 대해 자유롭게 에세이 작성", prompts: ["아래 주제로 에세이를 써보세요. ex) '성장', '도전'", "아래 키워드로 자유롭게 글을 써보세요. ex) '여행', '우정'"] },
+  { key: "experience", label: "경험담", desc: "자신의 경험/일화 중심으로 글쓰기", prompts: ["최근 경험한 인상 깊은 일을 에세이로 써보세요.", "어린 시절의 추억을 중심으로 글을 써보세요."] },
+  { key: "logic", label: "논증/설득", desc: "주장, 근거, 반론 등 논리적으로 전개", prompts: ["아래 주장에 대해 논리적으로 글을 써보세요. ex) '독서는 인생을 바꾼다.'", "아래 주제에 대해 찬반 논거를 들어 설득해보세요. ex) '온라인 수업의 장단점'"] },
+  { key: "expand", label: "요약/확장", desc: "짧은 글을 길게, 긴 글을 요약", prompts: ["아래 짧은 글을 길게 확장해보세요. ex) '나는 오늘 행복했다.'", "아래 긴 글을 3문장으로 요약해보세요."] },
+  { key: "quote", label: "인용문 활용", desc: "명언/책 구절 등 인용해 글 전개", prompts: ["아래 명언을 인용해 글을 써보세요. ex) '행복은 습관이다.'", "책 구절을 활용해 자신의 생각을 전개해보세요."] },
+  { key: "review", label: "감상문", desc: "책, 영화, 음악 등 감상문 작성", prompts: ["최근 읽은 책의 감상문을 써보세요.", "인상 깊게 본 영화에 대해 감상문을 작성해보세요."] },
+  { key: "metaphor", label: "비유/은유", desc: "비유적 표현을 활용한 에세이", prompts: ["아래 주제를 비유적으로 풀어 에세이를 써보세요. ex) '인생은 여행이다.'", "은유를 활용해 자신의 감정을 표현해보세요."] },
+  { key: "timer", label: "30분 타이머 글쓰기", desc: "타이머 30분 설정 후 주제로 글쓰기", prompts: ["타이머를 30분 설정한 후, 아래 주제로 1~2페이지 분량의 글을 써보세요. ex) '잃어버린 기억'", "30분 동안 아래 주제로 자유롭게 글을 써보세요. ex) '새로운 시작'"
+    ] },
 ];
 const dummyPracticeTypes = [
   { key: "topic", label: "주제 에세이" },
@@ -63,7 +66,13 @@ export default function EssayPractice() {
 
   const handleGetProblems = () => {
     const filtered = practiceTypes.filter(t => selectedTypes.includes(t.key));
-    setProblems(filtered.length > 0 ? filtered : practiceTypes.slice(0, 3));
+    if (filtered.length > 0) {
+      setProblems(filtered.map(type => ({ ...type, prompt: type.prompts[Math.floor(Math.random() * type.prompts.length)] })));
+    } else {
+      // 선택 없으면 8개 중 3개 랜덤
+      const shuffled = [...practiceTypes].sort(() => Math.random() - 0.5);
+      setProblems(shuffled.slice(0, 3).map(type => ({ ...type, prompt: type.prompts[Math.floor(Math.random() * type.prompts.length)] })));
+    }
     setSelectedProblemIdx(null);
   };
 
@@ -118,6 +127,7 @@ export default function EssayPractice() {
               >
                 <div className="font-bold text-blue-700 dark:text-blue-300">{idx + 1}. {type.label}</div>
                 <div className="text-gray-700 dark:text-gray-200 text-sm mt-1">{type.desc}</div>
+                <div className="text-gray-600 dark:text-gray-300 text-sm mt-2 whitespace-pre-line">{String('prompt' in type ? type.prompt : type.prompts[0])}</div>
                 {selectedProblemIdx === idx && (
                   <div className="mt-2">
                     <WritingArea category={type.label} />
@@ -146,55 +156,10 @@ export default function EssayPractice() {
               </button>
             ))}
           </div>
-          {/* 오토 리사이즈 textarea */}
-          <AutoResizeWritingArea />
+          {/* 공통 WritingArea 컴포넌트로 교체 (AI 피드백 활성화) */}
+          <WritingArea category="에세이" practiceType="자유" />
         </div>
       )}
     </div>
-  );
-}
-
-// 자유 글쓰기용 오토 리사이즈 컴포넌트
-function AutoResizeWritingArea() {
-  const [text, setText] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
-    }
-  }, [text]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-      <textarea
-        ref={textareaRef}
-        className="w-full max-w-6xl min-h-[200px] rounded-lg border border-gray-300 dark:border-gray-700 p-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white resize-y"
-        style={{ overflow: "hidden" }}
-        placeholder="자유롭게 글을 써보세요..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        required
-        rows={8}
-      />
-      <button
-        type="submit"
-        className="self-end bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 transition-colors shadow"
-      >
-        제출
-      </button>
-      {submitted && (
-        <div className="mt-2 text-blue-700 dark:text-blue-300">
-          AI 피드백 기능은 곧 제공될 예정입니다. 작성하신 글이 안전하게 저장되었습니다.
-        </div>
-      )}
-    </form>
   );
 } 
