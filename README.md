@@ -1,4 +1,6 @@
-### 테이블 구조
+## [DB: supabase](https://supabase.com/dashboard/project/zvhhjroidnpuxxhskffz)
+
+## 테이블 구조
 | 필드명             | 타입          | 설명                                      |
 | --------------- | ----------- | --------------------------------------- |
 | **id**          | integer     | 기본키, 자동 증가 (Supabase에서 자동 생성 가능)        |
