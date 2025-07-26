@@ -1,14 +1,15 @@
 ### 테이블 구조
-practice_problems 테이블 구조
-필드명	타입	설명
-id	integer	기본키, 자동 증가
-category	string/text	문제 카테고리 (예: 소설, 시 등)
-type	string/text	연습 유형 (예: 필사 연습, 문제 풀이 등)
-prompt	string/text	실제 문제 내용(지시문)
-difficulty	string/text	(선택) 난이도
-keywords	string[]	(선택) 키워드 배열
-length	integer	(선택) 예상 글 길이
-created_at	timestamp	(선택) 생성일시
+| 필드명             | 타입          | 설명                                      |
+| --------------- | ----------- | --------------------------------------- |
+| **id**          | integer     | 기본키, 자동 증가 (Supabase에서 자동 생성 가능)        |
+| **category**    | string/text | 문제 카테고리 (예: "소설", "시")                  |
+| **type**        | string/text | 연습 유형 (예: "필사 연습", "문제 풀이", "이미지화" 등)   |
+| **prompt**      | string/text | 실제 연습 문제 내용(지시문)                        |
+| **difficulty**  | string/text | 난이도 (선택, 예: "쉬움", "중간", "어려움")          |
+| **keywords**    | string\[]   | 키워드 배열 (선택, 예: \["시", "이미지화", "묘사"])    |
+| **length**      | integer     | 예상 글 길이 (선택, 글자 수 또는 단어 수 기준)           |
+| **created\_at** | timestamp   | 생성 일시 (선택, 현재 시간으로 입력하거나 Supabase에서 자동) |
+
 
 🚀 추가 개선/보완 제안 (2024-06)
 
