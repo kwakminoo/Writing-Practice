@@ -6,6 +6,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type');
     
+    console.log(`API 호출: type=${type}`);
+    
     if (!type) {
       return NextResponse.json({ 
         error: 'Type parameter is required' 
@@ -17,6 +19,8 @@ export async function GET(req: Request) {
     // type 필드로 조회
     query = query.eq('type', type);
     
+    console.log(`데이터베이스 쿼리 실행: type="${type}"`);
+    
     const { data, error } = await query;
     
     if (error) {
@@ -26,6 +30,8 @@ export async function GET(req: Request) {
         details: error.message 
       }, { status: 500 });
     }
+    
+    console.log(`쿼리 결과: ${data?.length || 0}개 데이터 발견`);
     
     // 데이터가 없으면 빈 배열 반환
     if (!data || data.length === 0) {
@@ -40,7 +46,8 @@ export async function GET(req: Request) {
     const randomIndex = Math.floor(Math.random() * data.length);
     const randomData = [data[randomIndex]];
     
-    console.log(`Found ${data.length} records for type: ${type}, returning 1 random record`);
+    console.log(`Found ${data.length} records for type: ${type}, returning 1 random record (index: ${randomIndex})`);
+    console.log(`선택된 데이터:`, randomData[0]);
     
     return NextResponse.json({ 
       data: randomData,

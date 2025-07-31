@@ -197,9 +197,6 @@ export default function FictionPractice() {
                 {problem.keywords && problem.keywords.length > 0 && (
                   <div className="text-xs text-gray-500 mt-1">제시어: {Array.isArray(problem.keywords) ? problem.keywords.join(', ') : problem.keywords}</div>
                 )}
-                {problem.length && (
-                  <div className="text-xs text-gray-500 mt-1">글자 수 제한: {problem.length}</div>
-                )}
                 {selectedProblemIdx === idx && (
                   <div className="mt-2">
                     <WritingArea category={problem.label} practiceType={problem.type} />
@@ -227,7 +224,7 @@ export default function FictionPractice() {
               </button>
             ))}
           </div>
-          <WritingArea category="소설" practiceType="자유" />
+          <WritingArea category="소설" practiceType="소설 자유" />
         </div>
       )}
     </div>

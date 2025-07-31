@@ -6,14 +6,14 @@ import { PracticeType, ProblemWithType } from '../../../types/practice';
 
 // 연습 방식 및 문제 프롬프트 정의
 const practiceTypes = [
-  { key: "image", label: "이미지화", desc: "사물/감정/상황을 시적 이미지로 표현", prompts: ["아래 단어를 시적 이미지로 표현해보세요. ex) '바람', '고독', '빛'", "아래 상황을 시로 이미지화해보세요. ex) '비 내리는 오후'",] },
-  { key: "rhythm", label: "운율 맞추기", desc: "정해진 운율, 음수율, 각운 등 맞춰 쓰기", prompts: ["아래 문장에 운율을 맞춰 시를 써보세요. ex) '봄이 오면'", "정해진 음수율로 시를 완성해보세요. ex) 3-5-3-5 음수율"] },
-  { key: "wordplay", label: "시어 변형", desc: "평범한 문장을 시어로 바꿔보기", prompts: ["아래 문장을 시어로 바꿔보세요. ex) '나는 너를 사랑해.'", "일상 문장을 시적으로 변형해보세요. ex) '햇살이 창문을 두드린다.'"] },
-  { key: "copy", label: "감각 분리 시", desc: "하나의 사물이나 상황을 오직 한 가지 감각(시각, 청각, 촉각, 후각, 미각 중 하나)만으로 묘사하는 시 쓰기. 다른 감각을 쓰지 않고 한 감각만으로 시를 완성해야 하는 독특한 제약.", prompts: ["아래 주제를 한 가지 감각(시각, 청각, 촉각, 후각, 미각 중 하나)만으로 시로 표현해보세요. 예: '불 꺼진 도서관'을 청각으로만 묘사하기. 예시: '종이 쓸리는 소리만이 숨을 잇는다.'"] },
-  { key: "improv", label: "즉흥시", desc: "랜덤 단어/주제로 즉석에서 시 쓰기", prompts: ["아래 단어로 즉흥시를 써보세요. ex) '별', '강', '꿈'", "랜덤 주제로 시를 창작해보세요. ex) '이별', '만남'"] },
-  { key: "mimic", label: "시 구조 변형 연습", desc: "한 문장 또는 짧은 단락을 주고, 자유시 → 3행시(세로 글자) → 하이쿠(5-7-5) → 산문시 등 서로 다른 시 형식으로 바꿔 쓰는 연습입니다.", prompts: ["아래 문장 또는 단락을 다양한 시 형식(자유시, 3행시, 하이쿠, 산문시 등)으로 바꿔 써보세요. 예: '비 내린 골목' → 자유시: '비 내린 골목에 / 발자국이 지워지고 / 숨소리만 남는다.' 하이쿠: '비 젖은 골목 / 발자국이 사라져 / 밤이 걸어온다.'"] },
-  { key: "variation", label: "주제 변주", desc: "같은 주제로 다양한 시적 접근 시도", prompts: ["아래 주제로 여러 스타일의 시를 써보세요. ex) '고독'", "같은 주제로 2가지 이상의 시를 써보세요. ex) '봄'",] },
-  { key: "onesentence", label: "한 문장 시", desc: "주제를 바탕으로 한 문장으로 시 완성", prompts: ["아래 주제로 한 문장 시를 써보세요. ex) '그리움'", "키워드로 한 문장 시를 완성해보세요. ex) '밤', '별', '창문'"] },
+  { key: "이미지화", label: "이미지화", desc: "사물/감정/상황을 시적 이미지로 표현", prompts: ["아래 단어를 시적 이미지로 표현해보세요. ex) '바람', '고독', '빛'", "아래 상황을 시로 이미지화해보세요. ex) '비 내리는 오후'",] },
+  { key: "운율 맞추기", label: "운율 맞추기", desc: "정해진 운율, 음수율, 각운 등 맞춰 쓰기", prompts: ["아래 문장에 운율을 맞춰 시를 써보세요. ex) '봄이 오면'", "정해진 음수율로 시를 완성해보세요. ex) 3-5-3-5 음수율"] },
+  { key: "시어 변형", label: "시어 변형", desc: "평범한 문장을 시어로 바꿔보기", prompts: ["아래 문장을 시어로 바꿔보세요. ex) '나는 너를 사랑해.'", "일상 문장을 시적으로 변형해보세요. ex) '햇살이 창문을 두드린다.'"] },
+  { key: "감각 분리 시", label: "감각 분리 시", desc: "하나의 사물이나 상황을 오직 한 가지 감각(시각, 청각, 촉각, 후각, 미각 중 하나)만으로 묘사하는 시 쓰기. 다른 감각을 쓰지 않고 한 감각만으로 시를 완성해야 하는 독특한 제약.", prompts: ["아래 주제를 한 가지 감각(시각, 청각, 촉각, 후각, 미각 중 하나)만으로 시로 표현해보세요. 예: '불 꺼진 도서관'을 청각으로만 묘사하기. 예시: '종이 쓸리는 소리만이 숨을 잇는다.'"] },
+  { key: "즉흥시", label: "즉흥시", desc: "랜덤 단어/주제로 즉석에서 시 쓰기", prompts: ["아래 단어로 즉흥시를 써보세요. ex) '별', '강', '꿈'", "랜덤 주제로 시를 창작해보세요. ex) '이별', '만남'"] },
+  { key: "시 구조 변형 연습", label: "시 구조 변형 연습", desc: "한 문장 또는 짧은 단락을 주고, 자유시 → 3행시(세로 글자) → 하이쿠(5-7-5) → 산문시 등 서로 다른 시 형식으로 바꿔 쓰는 연습입니다.", prompts: ["아래 문장 또는 단락을 다양한 시 형식(자유시, 3행시, 하이쿠, 산문시 등)으로 바꿔 써보세요. 예: '비 내린 골목' → 자유시: '비 내린 골목에 / 발자국이 지워지고 / 숨소리만 남는다.' 하이쿠: '비 젖은 골목 / 발자국이 사라져 / 밤이 걸어온다.'"] },
+  { key: "주제 변주", label: "주제 변주", desc: "같은 주제로 다양한 시적 접근 시도", prompts: ["아래 주제로 여러 스타일의 시를 써보세요. ex) '고독'", "같은 주제로 2가지 이상의 시를 써보세요. ex) '봄'",] },
+  { key: "한 문장 시", label: "한 문장 시", desc: "주제를 바탕으로 한 문장으로 시 완성", prompts: ["아래 주제로 한 문장 시를 써보세요. ex) '그리움'", "키워드로 한 문장 시를 완성해보세요. ex) '밤', '별', '창문'"] },
 ];
 const dummyPracticeTypes = [
   { key: "image", label: "이미지화" },
@@ -153,17 +153,6 @@ export default function PoetryPractice() {
       </div>
       {mode === 'practice' && (
         <>
-          {/* 시 구조 변형 연습 안내문구 */}
-          <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-700 rounded-lg text-blue-800 dark:text-blue-200">
-            <div className="font-bold mb-1">시 구조 변형 연습이란?</div>
-            <div>한 문장 또는 짧은 단락을 주고,<br />
-            자유시 → 3행시(세로 글자) → 하이쿠(5-7-5) → 산문시 등<br />
-            서로 다른 시 형식으로 바꿔 쓰는 연습입니다.<br />
-            <span className="font-semibold">예시:</span> '비 내린 골목' →<br />
-            자유시: "비 내린 골목에 / 발자국이 지워지고 / 숨소리만 남는다."<br />
-            하이쿠: "비 젖은 골목 / 발자국이 사라져 / 밤이 걸어온다."
-            </div>
-          </div>
           <div className="mb-4">
             <h3 className="text-xl font-semibold mb-2">연습 방식 선택/추가</h3>
             <div className="flex flex-wrap gap-2">
@@ -200,9 +189,6 @@ export default function PoetryPractice() {
                 {problem.keywords && problem.keywords.length > 0 && (
                   <div className="text-xs text-gray-500 mt-1">제시어: {Array.isArray(problem.keywords) ? problem.keywords.join(', ') : problem.keywords}</div>
                 )}
-                {problem.length && (
-                  <div className="text-xs text-gray-500 mt-1">글자 수 제한: {problem.length}</div>
-                )}
                 {selectedProblemIdx === idx && (
                   <div className="mt-2">
                     <WritingArea category={problem.label} practiceType={problem.type} />
@@ -232,7 +218,7 @@ export default function PoetryPractice() {
             ))}
           </div>
           {/* 공통 WritingArea 컴포넌트로 교체 (AI 피드백 활성화) */}
-          <WritingArea category="시" practiceType="자유" />
+          <WritingArea category="시" practiceType="시 자유" />
         </div>
       )}
     </div>
