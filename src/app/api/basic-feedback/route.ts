@@ -64,13 +64,28 @@ function analyzeText(text: string): TextAnalysis {
   };
 }
 
-// 대화문 판별 함수: 따옴표로 감싸진 문장인지 확인
+// 대화문 판별 함수: 따옴표로 감싸진 문장인지 확인 (더 유연하게 개선)
 function isDialogue(sentence: string): boolean {
-  // 양쪽에 " 또는 '로 감싸진 경우, 또는 한글 대화체 따옴표(“ ”)도 포함
   const trimmed = sentence.trim();
-  return (
-    (/^".*"$/.test(trimmed) || /^'.*'$/.test(trimmed) || /^“.*”$/.test(trimmed))
-  );
+  // "문장", '문장', “문장”, 『문장』 등 다양한 따옴표 지원, 끝에 !?~… 등 특수문자 허용
+  return /^(["'“『]).+(["'”』!?~…])$/.test(trimmed);
+}
+
+// 효과음/감탄사/특수문자/짧은 대사 등 판별 함수 추가
+function isSoundEffectOrExclam(sentence: string): boolean {
+  const trimmed = sentence.trim();
+  // 한글 5자 이하, 특수문자/의성어/감탄사/짧은 대사 등
+  if (/^[!?.,~…ㅡㄱ-ㅎㅏ-ㅣ]+$/.test(trimmed)) return true;
+  if (/^[으아오에이야어]+[!?~]*$/.test(trimmed)) return true; // 감탄사
+  if (trimmed.length <= 6 && /[!?~]/.test(trimmed)) return true;
+  if (trimmed.length <= 6 && /^[가-힣]+$/.test(trimmed)) return true; // 한글 짧은 단어
+  return false;
+}
+
+// 의미 있는 문장 판별 함수 추가
+function isMeaningfulSentence(sentence: string): boolean {
+  // 한글, 영문, 숫자가 2자 이상 포함되어야 의미 있는 문장으로 간주
+  return /[가-힣a-zA-Z0-9]{2,}/.test(sentence);
 }
 
 // 문법 체크 함수
@@ -94,9 +109,12 @@ function checkGrammar(text: string): GrammarCheck {
   
   sentences.forEach((sentence, index) => {
     const trimmed = sentence.trim();
-    
-    // 대화문은 짧거나 길어도 별도의 경고나 개선점에 포함하지 않도록 예외 처리
+    // 대화문/효과음/감탄사/특수문자 예외 처리
     if (isDialogue(trimmed)) {
+      // 대화문은 길이와 상관없이 짧은 문장 피드백에서 무조건 제외
+      return;
+    }
+    if (isSoundEffectOrExclam(trimmed)) {
       return;
     }
 
@@ -107,7 +125,7 @@ function checkGrammar(text: string): GrammarCheck {
     }
     
     // 문장이 너무 짧은 경우 (10자 미만)
-    if (trimmed.length < 10) {
+    if (trimmed.length < 10 && isMeaningfulSentence(trimmed)) {
       shortSentences.push(trimmed);
       score -= 3;
     }
@@ -175,7 +193,7 @@ function checkGrammar(text: string): GrammarCheck {
   
   // 문단 구조 체크
   const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-  const veryShortParagraphs = paragraphs.filter(p => p.length < 20);
+  const veryShortParagraphs = paragraphs.filter(p => p.length < 20 && !isSoundEffectOrExclam(p.trim()));
   
   if (veryShortParagraphs.length > 3) {
     issues.push({
@@ -208,6 +226,17 @@ function findRepeatedPhrases(text: string): string[] {
   }
   
   return [...new Set(phrases)];
+}
+
+// 예시 문장에 따옴표가 중첩되지 않도록 하는 함수 추가
+function quoteIfNeeded(sentence: string): string {
+  const trimmed = sentence.trim();
+  const hasFront = trimmed.startsWith('"') || trimmed.startsWith('“');
+  const hasBack = trimmed.endsWith('"') || trimmed.endsWith('”');
+  if (hasFront && hasBack) return trimmed;
+  if (hasFront && !hasBack) return trimmed + '"';
+  if (!hasFront && hasBack) return '"' + trimmed;
+  return '"' + trimmed + '"';
 }
 
 // 스타일 분석 함수 개선
@@ -296,14 +325,14 @@ function analyzeStyle(text: string, category: string): StyleAnalysis {
   
   // 문장 길이 분석 - 실제 문장 예시 사용
   const goodLengthSentences = sentences.filter(s => s.trim().length >= 10 && s.trim().length <= 30);
-  const shortSentences = sentences.filter(s => s.trim().length < 10);
+  const shortSentences = sentences.filter(s => s.trim().length < 10 && !isDialogue(s.trim()) && !isSoundEffectOrExclam(s.trim()));
   const longSentences = sentences.filter(s => s.trim().length > 30);
   
   if (goodLengthSentences.length > 0) {
     const example = goodLengthSentences[0].trim();
     strengths.push({
       point: '적절한 문장 길이',
-      evidence: `"${example}"와 같이 적절한 길이의 문장을 사용했습니다.`
+      evidence: `${quoteIfNeeded(example)}와 같이 적절한 길이의 문장을 사용했습니다.`
     });
   }
   
@@ -311,7 +340,7 @@ function analyzeStyle(text: string, category: string): StyleAnalysis {
     const example = shortSentences[0].trim();
     weaknesses.push({
       point: '문장이 너무 짧음',
-      evidence: `"${example}"와 같은 짧은 문장이 많아 내용이 부족합니다.`,
+      evidence: `${quoteIfNeeded(example)}와 같은 짧은 문장이 많아 내용이 부족합니다.`,
       suggestion: '짧은 문장들을 연결하거나 구체적인 묘사를 추가하여 내용을 풍성하게 만들어보세요.'
     });
   }
@@ -320,7 +349,7 @@ function analyzeStyle(text: string, category: string): StyleAnalysis {
     const example = longSentences[0].trim();
     weaknesses.push({
       point: '문장이 너무 김',
-      evidence: `"${example.substring(0, 30)}..."와 같은 긴 문장이 읽기 어렵습니다.`,
+      evidence: `${quoteIfNeeded(example.substring(0, 30))}...와 같은 긴 문장이 읽기 어렵습니다.`,
       suggestion: '긴 문장을 두 개로 나누어 읽기 쉽게 만들어보세요.'
     });
   }
@@ -348,7 +377,7 @@ function analyzeStyle(text: string, category: string): StyleAnalysis {
     const firstParagraph = paragraphs[0].substring(0, 30) + (paragraphs[0].length > 30 ? '...' : '');
     strengths.push({
       point: '적절한 문단 구분',
-      evidence: `"${firstParagraph}"와 같이 문단이 잘 구분되어 읽기 쉽습니다.`
+      evidence: `${quoteIfNeeded(firstParagraph)}와 같이 문단이 잘 구분되어 읽기 쉽습니다.`
     });
   }
   
@@ -363,7 +392,7 @@ function analyzeStyle(text: string, category: string): StyleAnalysis {
       const example = emotionalSentences[0].trim();
       strengths.push({
         point: '감정 표현 활용',
-        evidence: `"${example}"와 같이 감정 표현이 잘 사용되었습니다.`
+        evidence: `${quoteIfNeeded(example)}와 같이 감정 표현이 잘 사용되었습니다.`
       });
     }
   }
@@ -379,7 +408,7 @@ function analyzeStyle(text: string, category: string): StyleAnalysis {
       const example = descriptiveSentences[0].trim();
       strengths.push({
         point: '묘사 표현 활용',
-        evidence: `"${example}"와 같이 구체적인 묘사가 잘 사용되었습니다.`
+        evidence: `${quoteIfNeeded(example)}와 같이 구체적인 묘사가 잘 사용되었습니다.`
       });
     }
   }
@@ -395,7 +424,7 @@ function analyzeStyle(text: string, category: string): StyleAnalysis {
       const example = connectiveSentences[0].trim();
       strengths.push({
         point: '문장 연결',
-        evidence: `"${example}"와 같이 연결어를 사용하여 문장 간 흐름이 자연스럽습니다.`
+        evidence: `${quoteIfNeeded(example)}와 같이 연결어를 사용하여 문장 간 흐름이 자연스럽습니다.`
       });
     }
   }
