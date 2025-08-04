@@ -199,7 +199,12 @@ export default function FictionPractice() {
                 )}
                 {selectedProblemIdx === idx && (
                   <div className="mt-2">
-                    <WritingArea category={problem.label} practiceType={problem.type} />
+                    <WritingArea 
+                      category={problem.label} 
+                      practiceType={problem.type} 
+                      problemId={problem.id?.toString()}
+                      problemPrompt={problem.prompt}
+                    />
                   </div>
                 )}
               </div>
@@ -224,7 +229,7 @@ export default function FictionPractice() {
               </button>
             ))}
           </div>
-          <WritingArea category="소설" practiceType="소설 자유" />
+          <WritingArea category="소설" practiceType="소설 자유" isFreeWriting={true} />
         </div>
       )}
     </div>

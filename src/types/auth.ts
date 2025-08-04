@@ -6,6 +6,15 @@ export interface User {
   updated_at: string;
 }
 
+export interface UserInfo {
+  id: string;
+  name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuthState {
   user: User | null;
   loading: boolean;
@@ -31,4 +40,6 @@ export interface AuthContextType {
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  getUserInfo: (userId: string) => Promise<UserInfo | null>;
+  updateUserInfo: (userId: string, updates: { name?: string; avatar_url?: string; bio?: string }) => Promise<UserInfo>;
 } 

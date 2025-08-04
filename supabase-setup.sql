@@ -1,8 +1,8 @@
 -- Supabase 데이터베이스 설정 스크립트
 -- 이 스크립트를 Supabase SQL 편집기에서 실행하세요
 
--- 1. 사용자 프로필 테이블 생성
-CREATE TABLE IF NOT EXISTS public.profiles (
+-- 1. 사용자 테이블 생성
+CREATE TABLE IF NOT EXISTS public.users (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     name TEXT,
     avatar_url TEXT,
@@ -36,17 +36,17 @@ CREATE TABLE IF NOT EXISTS public.ai_feedbacks (
 
 -- 4. RLS (Row Level Security) 정책 설정
 
--- 프로필 테이블 RLS
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+-- 사용자 테이블 RLS
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
--- 사용자는 자신의 프로필만 읽고 수정할 수 있음
-CREATE POLICY "Users can view own profile" ON public.profiles
+-- 사용자는 자신의 정보만 읽고 수정할 수 있음
+CREATE POLICY "Users can view own user info" ON public.users
     FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Users can update own profile" ON public.profiles
+CREATE POLICY "Users can update own user info" ON public.users
     FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Users can insert own profile" ON public.profiles
+CREATE POLICY "Users can insert own user info" ON public.users
     FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- 글쓰기 테이블 RLS
@@ -85,23 +85,23 @@ END;
 $$ language 'plpgsql';
 
 -- 6. 트리거 설정
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_user_writings_updated_at BEFORE UPDATE ON public.user_writings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 7. 새 사용자 가입 시 프로필 자동 생성 함수
+-- 7. 새 사용자 가입 시 사용자 정보 자동 생성 함수
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, name)
+    INSERT INTO public.users (id, name)
     VALUES (NEW.id, NEW.raw_user_meta_data->>'name');
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 8. 새 사용자 가입 시 프로필 자동 생성 트리거
+-- 8. 새 사용자 가입 시 사용자 정보 자동 생성 트리거
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function AiFeedback() {
+export default function BasicFeedback() {
   const { user } = useAuth();
   const [content, setContent] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -29,29 +29,31 @@ export default function AiFeedback() {
     setSuccess("");
 
     try {
-      // AI 피드백 생성 (실제 AI API 연동 전까지는 시뮬레이션)
-      const aiFeedback = generateAIFeedback(content);
-      setFeedback(aiFeedback);
-      setSuccess("AI 피드백이 생성되었습니다!");
+      // 기본 피드백 API 호출
+      const feedbackResponse = await fetch('/api/basic-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: content
+        })
+      });
+
+      const feedbackResult = await feedbackResponse.json();
+
+      if (feedbackResult.success) {
+        setFeedback(feedbackResult.feedback);
+        setSuccess("기본 피드백이 생성되었습니다!");
+      } else {
+        setError(feedbackResult.error || '피드백 생성에 실패했습니다.');
+      }
     } catch (err) {
-      console.error('AI 피드백 오류:', err);
-      setError('AI 피드백 생성 중 오류가 발생했습니다.');
+      console.error('기본 피드백 오류:', err);
+      setError('기본 피드백 생성 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateAIFeedback = (text: string): string => {
-    // 실제 AI API 연동 전까지는 시뮬레이션
-    const feedbacks = [
-      `📝 문장력 분석:\n- 전체적으로 명확하고 이해하기 쉬운 문장입니다.\n- 문장 길이가 적절하여 가독성이 좋습니다.\n\n💡 개선 제안:\n- 더 구체적인 예시를 추가하면 더욱 설득력 있는 글이 될 것 같습니다.\n- 단락 구분을 명확히 하면 구조가 더 좋아질 것입니다.`,
-      
-      `🎯 주제 전달력:\n- 핵심 주제가 명확하게 드러나고 있습니다.\n- 논리적 흐름이 자연스럽습니다.\n\n✨ 창의성 평가:\n- 독창적인 관점이 잘 표현되어 있습니다.\n- 새로운 아이디어를 제시하는 부분이 인상적입니다.`,
-      
-      `📊 구조 분석:\n- 도입부, 전개부, 결론부가 잘 구성되어 있습니다.\n- 각 단락의 역할이 명확합니다.\n\n🔍 세부 개선점:\n- 일부 문장에서 주어와 목적어의 관계를 더 명확히 하면 좋겠습니다.\n- 감정을 더 구체적으로 표현하면 독자의 공감을 얻을 수 있을 것입니다.`
-    ];
-
-    return feedbacks[Math.floor(Math.random() * feedbacks.length)];
   };
 
   return (
@@ -59,10 +61,10 @@ export default function AiFeedback() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            🤖 AI 피드백
+            📝 기본 피드백
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            AI가 여러분의 글을 분석하고 맞춤형 피드백을 제공합니다
+            맞춤법, 문법, 문장 구조에 대한 기본적인 피드백을 제공합니다
           </p>
         </div>
 
@@ -76,7 +78,7 @@ export default function AiFeedback() {
             {!user ? (
               <div className="text-center py-8">
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  AI 피드백을 받으려면 로그인이 필요합니다.
+                  기본 피드백을 받으려면 로그인이 필요합니다.
                 </p>
                 <a
                   href="/login"
@@ -121,7 +123,7 @@ export default function AiFeedback() {
                       : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
-                  {loading ? '분석 중...' : 'AI 피드백 받기'}
+                  {loading ? '분석 중...' : '기본 피드백 받기'}
                 </button>
               </form>
             )}
@@ -130,7 +132,7 @@ export default function AiFeedback() {
           {/* 피드백 결과 */}
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              AI 피드백 결과
+              기본 피드백 결과
             </h2>
             
             {feedback ? (
@@ -139,8 +141,8 @@ export default function AiFeedback() {
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                <div className="text-4xl mb-4">🤖</div>
-                <p>왼쪽에 글을 입력하고 AI 피드백을 받아보세요!</p>
+                <div className="text-4xl mb-4">📝</div>
+                <p>왼쪽에 글을 입력하고 기본 피드백을 받아보세요!</p>
               </div>
             )}
           </div>

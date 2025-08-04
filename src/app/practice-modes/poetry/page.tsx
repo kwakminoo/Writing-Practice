@@ -191,7 +191,12 @@ export default function PoetryPractice() {
                 )}
                 {selectedProblemIdx === idx && (
                   <div className="mt-2">
-                    <WritingArea category={problem.label} practiceType={problem.type} />
+                    <WritingArea 
+                      category={problem.label} 
+                      practiceType={problem.type} 
+                      problemId={problem.id?.toString()}
+                      problemPrompt={problem.prompt}
+                    />
                   </div>
                 )}
               </div>
@@ -218,7 +223,7 @@ export default function PoetryPractice() {
             ))}
           </div>
           {/* 공통 WritingArea 컴포넌트로 교체 (AI 피드백 활성화) */}
-          <WritingArea category="시" practiceType="시 자유" />
+          <WritingArea category="시" practiceType="시 자유" isFreeWriting={true} />
         </div>
       )}
     </div>

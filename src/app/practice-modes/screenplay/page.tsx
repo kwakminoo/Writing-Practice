@@ -208,7 +208,12 @@ export default function ScreenplayPractice() {
                 )}
                 {selectedProblemIdx === idx && (
                   <div className="mt-2">
-                    <WritingArea category={problem.label} practiceType={problem.type} />
+                    <WritingArea 
+                      category={problem.label} 
+                      practiceType={problem.type} 
+                      problemId={problem.id?.toString()}
+                      problemPrompt={problem.prompt}
+                    />
                   </div>
                 )}
               </div>
@@ -235,7 +240,7 @@ export default function ScreenplayPractice() {
             ))}
           </div>
           {/* 공통 WritingArea 컴포넌트로 교체 (AI 피드백 활성화) */}
-          <WritingArea category="시나리오" practiceType="시나리오 자유" />
+          <WritingArea category="시나리오" practiceType="시나리오 자유" isFreeWriting={true} />
         </div>
       )}
     </div>

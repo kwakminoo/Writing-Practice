@@ -27,7 +27,7 @@ export default function Home() {
         <>
           <p className="text-lg sm:text-xl text-center text-gray-700 dark:text-gray-300 mb-8 max-w-xl">
             다양한 장르의 글쓰기를 연습하고, AI 피드백을 받아보세요.<br />
-            소설, 사극, 시나리오, 시, 에세이 등 원하는 방식으로 자유롭게 글을 써보세요.
+            소설, 시나리오, 시, 에세이 등 원하는 방식으로 자유롭게 글을 써보세요.
           </p>
           <div className="flex gap-4 mb-8">
             <Link href="/practice-modes" className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-8 py-3 transition-colors shadow-lg">

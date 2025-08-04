@@ -24,3 +24,83 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 브라우저 기본 HTML5 유효성 검사 메시지 완전 비활성화 */
+input:invalid {
+  box-shadow: none !important;
+}
+
+input:invalid:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+/* 모든 브라우저에서 기본 유효성 검사 메시지 숨기기 */
+input:invalid::-webkit-validation-bubble-message {
+  display: none !important;
+}
+
+input:invalid::-webkit-validation-bubble-arrow {
+  display: none !important;
+}
+
+/* Firefox에서 기본 유효성 검사 메시지 숨기기 */
+input:invalid::-moz-validation-bubble {
+  display: none !important;
+}
+
+/* IE/Edge에서 기본 유효성 검사 메시지 숨기기 */
+input:invalid::-ms-validation-bubble {
+  display: none !important;
+}
+
+/* 모든 브라우저에서 기본 유효성 검사 메시지 숨기기 (범용) */
+input:invalid::before,
+input:invalid::after {
+  display: none !important;
+}
+
+/* 커스텀 유효성 검사 메시지 스타일 */
+.validation-error {
+  color: #dc2626;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  padding-left: 0.75rem;
+}
+
+.dark .validation-error {
+  color: #f87171;
+}
+
+/* 입력 필드 오류 상태 스타일 */
+.input-error {
+  border-color: #fca5a5 !important;
+}
+
+.dark .input-error {
+  border-color: #ef4444 !important;
+}
+
+/* 포커스 시 오류 상태 스타일 */
+.input-error:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.dark .input-error:focus {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1) !important;
+}
+
+/* 추가: 모든 form 요소에서 기본 유효성 검사 메시지 숨기기 */
+form {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* 추가: input 요소에서 기본 유효성 검사 메시지 숨기기 */
+input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}

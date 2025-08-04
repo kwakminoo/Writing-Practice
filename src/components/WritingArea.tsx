@@ -2,10 +2,14 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useAuth } from "../contexts/AuthContext";
 
 interface WritingAreaProps {
   category: string; // 예: 소설, 시 등
   practiceType?: string; // 예: daily, theme, copy 등
+  isFreeWriting?: boolean; // 자유 글쓰기 모드인지 여부
+  problemId?: string; // 연습문제 ID (연습문제 모드일 때)
+  problemPrompt?: string; // 연습문제 프롬프트 (연습문제 모드일 때)
 }
 
 function isCopyType(category: string) {
@@ -62,8 +66,10 @@ const FEEDBACK_LABELS = [
   '기술적 피드백(선택)' // 5번째 항목은 선택적
 ];
 
-export default function WritingArea({ category, practiceType }: WritingAreaProps) {
+export default function WritingArea({ category, practiceType, isFreeWriting = false, problemId, problemPrompt }: WritingAreaProps) {
+  const { user } = useAuth();
   const [text, setText] = useState("");
+  const [title, setTitle] = useState(""); // 제목 상태 추가
   const [lastFeedbackText, setLastFeedbackText] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
@@ -125,6 +131,7 @@ export default function WritingArea({ category, practiceType }: WritingAreaProps
     setLoading(true);
     
     try {
+      // 1. 피드백 요청
       const endpoint = feedbackType === 'ai' ? "/api/ai-feedback" : "/api/basic-feedback";
       const body = feedbackType === 'ai' 
         ? { content: text, category, practiceType }
@@ -139,10 +146,34 @@ export default function WritingArea({ category, practiceType }: WritingAreaProps
       
       if (data.result) {
         if (feedbackType === 'ai') {
-        setAiFeedback(data.result);
+          setAiFeedback(data.result);
         } else {
           setBasicFeedback(data.result);
         }
+        
+        // 2. 글 저장 (피드백이 성공적으로 받아진 경우에만)
+        if (user) {
+          try {
+            const saveRes = await fetch("/api/user-writings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                user_id: user.id,
+                content: text,
+                title: isFreeWriting ? title : undefined,
+                type: practiceType || category,
+                problem_id: problemId, // 연습문제 ID가 있으면 저장
+              }),
+            });
+            
+            if (!saveRes.ok) {
+              console.error('글 저장 실패');
+            }
+          } catch (saveErr) {
+            console.error('글 저장 중 오류:', saveErr);
+          }
+        }
+        
         // 피드백 타입과 함께 저장하여 타입 변경 시 감지
         setLastFeedbackText(`${text}_${feedbackType}`);
       } else {
@@ -299,6 +330,24 @@ export default function WritingArea({ category, practiceType }: WritingAreaProps
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-3xl mx-auto">
+      {/* 자유 글쓰기일 때만 제목 입력 필드 표시 */}
+      {isFreeWriting && (
+        <div className="w-full max-w-3xl mx-auto">
+          <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            제목
+          </label>
+          <input
+            type="text"
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="글의 제목을 입력하세요..."
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white"
+            required
+          />
+        </div>
+      )}
+      
       <textarea
         ref={textareaRef}
         className="w-full max-w-3xl min-h-[400px] rounded-lg border border-gray-300 dark:border-gray-700 p-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white resize-y"
