@@ -10,6 +10,46 @@ export default function AiFeedback() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [userCoins, setUserCoins] = useState<number | null>(null);
+  const [loadingCoins, setLoadingCoins] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserCoins();
+    }
+  }, [user]);
+
+  const fetchUserCoins = async () => {
+    try {
+      setLoadingCoins(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        setError('로그인이 필요합니다.');
+        return;
+      }
+
+      const response = await fetch('/api/coins/balance', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setUserCoins(data.balance);
+      } else {
+        console.error('코인 잔액 조회 오류:', data.error);
+        setUserCoins(0);
+      }
+    } catch (err) {
+      console.error('코인 잔액 조회 중 오류:', err);
+      setUserCoins(0);
+    } finally {
+      setLoadingCoins(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,29 +69,46 @@ export default function AiFeedback() {
     setSuccess("");
 
     try {
-      // AI 피드백 생성 (실제 AI API 연동 전까지는 시뮬레이션)
-      const aiFeedback = generateAIFeedback(content);
-      setFeedback(aiFeedback);
-      setSuccess("AI 피드백이 생성되었습니다!");
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        setError('로그인이 필요합니다.');
+        return;
+      }
+
+      const response = await fetch('/api/ai-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          content: content,
+          category: 'general',
+          practiceType: 'free'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setFeedback(data.feedback);
+        setSuccess("AI 피드백이 생성되었습니다!");
+        // 코인 잔액 새로고침
+        fetchUserCoins();
+      } else {
+        if (data.error === 'Insufficient coins') {
+          setError(`코인이 부족합니다. 현재 ${data.currentBalance}코인, 필요 ${data.requiredAmount}코인`);
+        } else {
+          setError(data.error || 'AI 피드백 생성 중 오류가 발생했습니다.');
+        }
+      }
     } catch (err) {
       console.error('AI 피드백 오류:', err);
       setError('AI 피드백 생성 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateAIFeedback = (text: string): string => {
-    // 실제 AI API 연동 전까지는 시뮬레이션
-    const feedbacks = [
-      `📝 문장력 분석:\n- 전체적으로 명확하고 이해하기 쉬운 문장입니다.\n- 문장 길이가 적절하여 가독성이 좋습니다.\n\n💡 개선 제안:\n- 더 구체적인 예시를 추가하면 더욱 설득력 있는 글이 될 것 같습니다.\n- 단락 구분을 명확히 하면 구조가 더 좋아질 것입니다.`,
-      
-      `🎯 주제 전달력:\n- 핵심 주제가 명확하게 드러나고 있습니다.\n- 논리적 흐름이 자연스럽습니다.\n\n✨ 창의성 평가:\n- 독창적인 관점이 잘 표현되어 있습니다.\n- 새로운 아이디어를 제시하는 부분이 인상적입니다.`,
-      
-      `📊 구조 분석:\n- 도입부, 전개부, 결론부가 잘 구성되어 있습니다.\n- 각 단락의 역할이 명확합니다.\n\n🔍 세부 개선점:\n- 일부 문장에서 주어와 목적어의 관계를 더 명확히 하면 좋겠습니다.\n- 감정을 더 구체적으로 표현하면 독자의 공감을 얻을 수 있을 것입니다.`
-    ];
-
-    return feedbacks[Math.floor(Math.random() * feedbacks.length)];
   };
 
   return (
@@ -62,8 +119,19 @@ export default function AiFeedback() {
             🤖 AI 피드백
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            AI가 여러분의 글을 분석하고 맞춤형 피드백을 제공합니다
+            AI가 여러분의 글을 분석하고 맞춤형 피드백을 제공합니다 (10코인 소모)
           </p>
+          {user && (
+            <div className="mt-4">
+              {loadingCoins ? (
+                <p className="text-sm text-gray-500">코인 잔액 확인 중...</p>
+              ) : (
+                <p className="text-sm text-blue-600 dark:text-blue-400">
+                  현재 보유 코인: {userCoins}코인
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -114,15 +182,21 @@ export default function AiFeedback() {
                 
                 <button
                   type="submit"
-                  disabled={loading || !content.trim()}
+                  disabled={loading || !content.trim() || (userCoins !== null && userCoins < 10)}
                   className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                    loading || !content.trim()
+                    loading || !content.trim() || (userCoins !== null && userCoins < 10)
                       ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                       : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
-                  {loading ? '분석 중...' : 'AI 피드백 받기'}
+                  {loading ? '분석 중...' : 'AI 피드백 받기 (10코인)'}
                 </button>
+                
+                {userCoins !== null && userCoins < 10 && (
+                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                    코인이 부족합니다. 코인을 충전해주세요.
+                  </p>
+                )}
               </form>
             )}
           </div>
@@ -134,8 +208,17 @@ export default function AiFeedback() {
             </h2>
             
             {feedback ? (
-              <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed">
-                {feedback}
+              <div className="prose prose-gray dark:prose-invert max-w-none">
+                <div 
+                  className="text-gray-700 dark:text-gray-300 leading-relaxed"
+                  dangerouslySetInnerHTML={{ 
+                    __html: feedback
+                      .replace(/\n/g, '<br>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                      .replace(/\|(.*?)\|/g, '<code>$1</code>')
+                  }}
+                />
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400">

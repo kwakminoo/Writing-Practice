@@ -72,6 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       setLoading(true);
       
+      // 이미 로그인된 사용자인지 확인
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setError('이미 로그인 중입니다. 다른 계정으로 로그인하려면 먼저 로그아웃해주세요.');
+        setLoading(false);
+        return;
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,

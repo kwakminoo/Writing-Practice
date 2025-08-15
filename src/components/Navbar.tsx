@@ -8,6 +8,7 @@ import { UserSubscription } from "../types/subscription";
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
+  const [userCoins, setUserCoins] = useState<number>(0);
   
   const navItems = [
     { name: "홈", href: "/" },
@@ -17,10 +18,11 @@ export default function Navbar() {
     { name: "소개", href: "/about" },
   ];
 
-  // 구독 정보 조회
+  // 구독 정보 및 코인 정보 조회
   useEffect(() => {
     if (user) {
       fetchSubscriptionInfo();
+      fetchUserCoins();
     }
   }, [user]);
 
@@ -41,6 +43,27 @@ export default function Navbar() {
       setCurrentSubscription(data);
     } catch (err) {
       console.error('구독 정보 조회 중 오류:', err);
+    }
+  };
+
+  const fetchUserCoins = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('coins')
+        .eq('id', user?.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('코인 정보 조회 오류:', error);
+        setUserCoins(0);
+        return;
+      }
+
+      setUserCoins(data?.coins || 0);
+    } catch (err) {
+      console.error('코인 정보 조회 중 오류:', err);
+      setUserCoins(0);
     }
   };
 
@@ -75,9 +98,10 @@ function DarkModeToggleInline() {
 
   const getSubscriptionDisplay = () => {
     if (!currentSubscription) return '무료';
+    
     const planNames = {
       'free': '무료',
-      'basic': '베이직',
+      'coin': '코인',
       'premium': '프리미엄'
     };
     return planNames[currentSubscription.subscription_type] || '무료';
@@ -102,9 +126,8 @@ function DarkModeToggleInline() {
             <span className="text-sm text-gray-600 dark:text-gray-400">
               안녕하세요, {user.name || user.email}님
             </span>
-            <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 rounded text-xs font-medium">
-              <span className="text-blue-800 dark:text-blue-200">💎</span>
-              <span className="text-blue-800 dark:text-blue-200">{getSubscriptionDisplay()}</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 rounded text-xs font-medium">
+              <span className="text-yellow-800 dark:text-yellow-200">{userCoins}코인</span>
             </div>
             <Link
               href="/profile"

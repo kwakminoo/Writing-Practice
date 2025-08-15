@@ -1,8 +1,10 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabaseClient";
+import Link from "next/link";
 
 interface WritingAreaProps {
   category: string; // 예: 소설, 시 등
@@ -75,7 +77,7 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [basicFeedback, setBasicFeedback] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | React.ReactElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [loadingDots, setLoadingDots] = useState<string>("");
   // 피드백 타입 초기값을 'basic'으로 변경
@@ -131,6 +133,14 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
     setLoading(true);
     
     try {
+      // 사용자 토큰 가져오기
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError('로그인이 필요합니다.');
+        setLoading(false);
+        return;
+      }
+
       // 1. 피드백 요청
       const endpoint = feedbackType === 'ai' ? "/api/ai-feedback" : "/api/basic-feedback";
       const body = feedbackType === 'ai' 
@@ -139,14 +149,31 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
         
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
       
-      if (data.result) {
+      if (data.error === 'Insufficient coins') {
+        setError(
+          <div className="text-red-600 dark:text-red-400">
+            {data.message || '코인이 부족합니다.'}
+            <br />
+            <Link href="/coins" className="text-blue-600 hover:text-blue-700 underline">
+              코인 충전하기 →
+            </Link>
+          </div>
+        );
+        setLoading(false);
+        return;
+      }
+      
+      if (data.feedback || data.result) {
         if (feedbackType === 'ai') {
-          setAiFeedback(data.result);
+          setAiFeedback(data.feedback || data.result);
         } else {
           setBasicFeedback(data.result);
         }
@@ -156,19 +183,23 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
           try {
             const saveRes = await fetch("/api/user-writings", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${session.access_token}`
+              },
               body: JSON.stringify({
                 user_id: user.id,
-                content: text,
-                title: isFreeWriting ? title : undefined,
+                content: problemPrompt ? `문제: ${problemPrompt}\n\n작성글: ${text}` : text,
+                title: isFreeWriting ? title : category, // 연습 방식 이름을 제목으로 사용
                 type: practiceType || category,
                 problem_id: problemId, // 연습문제 ID가 있으면 저장
               }),
             });
             
-            if (!saveRes.ok) {
-              console.error('글 저장 실패');
-            }
+                         if (!saveRes.ok) {
+               const errorData = await saveRes.json();
+               console.error('글 저장 실패:', saveRes.status, errorData);
+             }
           } catch (saveErr) {
             console.error('글 저장 중 오류:', saveErr);
           }
@@ -240,23 +271,27 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
         }
       }
     }
-    // 항목별로 한 번만 출력, 중복 방지
+    
+    // 새로운 프롬프트 구조에 맞춰 섹션 파싱
     const sections: { [key: string]: string } = {};
-    const order = ['감상', '좋은 점', '개선점', '최후통첩', '구체적 개선안', '코멘트'];
-    // 항목별 정규식 추출
     const patterns: { [key: string]: RegExp } = {
-      감상: /감상[\s\n]*([\s\S]*?)(?=\n{2,}|\n*좋은 점|$)/,
-      '좋은 점': /좋은 점[\s\n]*([\s\S]*?)(?=\n{2,}|\n*개선점|$)/,
-      '개선점': /개선점[\s\n]*([\s\S]*?)(?=\n{2,}|\n*최후통첩|$)/,
-      '최후통첩': /최후통첩[\s\n]*([\s\S]*?)(?=\n{2,}|\n*구체적 개선안|$)/,
-      '구체적 개선안': /구체적 개선안[\s\n]*([\s\S]*?)(?=\n{2,}|\n*코멘트|$)/,
-      '코멘트': /코멘트[\s\n]*([\s\S]*?)(?=\n{2,}|$)/,
+      '별점 평가': /## 1\. 별점 평가[\s\S]*?(?=## 2\. 감상 요약|$)/,
+      '감상 요약': /## 2\. 감상 요약[\s\S]*?(?=## 3\. 좋았던 점|$)/,
+      '좋았던 점': /## 3\. 좋았던 점[\s\S]*?(?=## 4\. 개선이 가능한 부분|$)/,
+      '개선이 가능한 부분': /## 4\. 개선이 가능한 부분[\s\S]*?(?=## 5\. 추천 포인트\/다음 제안|$)/,
+      '추천 포인트/다음 제안': /## 5\. 추천 포인트\/다음 제안[\s\S]*?(?=## 6\. 기술적 피드백|$)/,
+      '기술적 피드백': /## 6\. 기술적 피드백[\s\S]*?(?=$)/,
     };
-    // 각 항목별로 첫 번째만 추출
-    for (const key of order) {
-      const match = feedback.match(patterns[key]);
-      if (match && match[1]) {
-        sections[key] = match[1].trim();
+    
+    // 각 섹션 추출
+    for (const [key, pattern] of Object.entries(patterns)) {
+      const match = feedback.match(pattern);
+      if (match && match[0]) {
+        // ## 제목 제거하고 내용만 추출
+        const content = match[0].replace(/^## \d+\.\s*[^#\n]*\n?/, '').trim();
+        if (content) {
+          sections[key] = content;
+        }
       }
     }
     // 렌더링
@@ -285,43 +320,53 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
             </table>
           </div>
         )}
-        {/* 감상, 좋은 점, 개선점, 최후통첩, 구체적 개선안 등은 기존 순서대로 */}
-        {sections['감상'] && (
+        {/* 새로운 프롬프트 구조에 맞춰 섹션 렌더링 */}
+        {sections['감상 요약'] && (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-            <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">감상</div>
-            <div className="text-gray-900 dark:text-gray-100 whitespace-pre-line">{sections['감상']}</div>
+            <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">감상 요약</div>
+            <div className="text-gray-900 dark:text-gray-100 whitespace-pre-line">{sections['감상 요약']}</div>
           </div>
         )}
-        {order.filter(key => key !== '감상' && key !== '코멘트').map((key: string) =>
-          sections[key] ? (
-            <div key={key} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">{key}</div>
-              {['좋은 점', '개선점'].includes(key)
-                ? (
-                  <ul className="list-disc pl-5 text-gray-900 dark:text-gray-100">
-                    {sections[key]
-                      .split(/\n|\r/)
-                      .filter((line: string) => line.trim() && line.replace(/^[-•\s]+/, '').trim() !== '**' && line.replace(/^[-•\s]+/, '').trim() !== ':')
-                      .map((line: string, idx: number) => {
-                        // '- **:' 또는 '- :' 등 특수문자만 있는 줄 제거
-                        const clean = line.replace(/^[-•\s]+/, '').replace(/^\*\*:?$/, '').replace(/^:?$/, '').trim();
-                        if (!clean || clean === ':' || clean === '**:') return null;
-                        return <li key={idx} className="mb-0">- {clean}</li>;
-                      })}
-                  </ul>
-                )
-                : key === '최후통첩'
-                  ? <div className="text-gray-900 dark:text-gray-100 whitespace-pre-line">{sections[key].split(/\n|\r/).filter((line: string) => line.trim() && line.replace(/^[-•\s]+/, '').trim() !== '**').map((line: string, idx: number) => line.replace(/^[-•\s]+/, '').replace(/^\*\*$/, '').trim()).join(' ')}</div>
-                  : <div className="text-gray-900 dark:text-gray-100 whitespace-pre-line">{sections[key]}</div>
-              }
-            </div>
-          ) : null
-        )}
-        {/* 코멘트는 항상 맨 마지막에 */}
-        {sections['코멘트'] && (
+        {sections['좋았던 점'] && (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-            <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">코멘트</div>
-            <div className="text-gray-900 dark:text-gray-100 whitespace-pre-line">{sections['코멘트']}</div>
+            <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">좋았던 점</div>
+            <ul className="list-disc pl-5 text-gray-900 dark:text-gray-100">
+              {sections['좋았던 점']
+                .split(/\n|\r/)
+                .filter((line: string) => line.trim() && line.replace(/^[-•\s]+/, '').trim() !== '**' && line.replace(/^[-•\s]+/, '').trim() !== ':')
+                .map((line: string, idx: number) => {
+                  const clean = line.replace(/^[-•\s]+/, '').replace(/^\*\*:?$/, '').replace(/^:?$/, '').trim();
+                  if (!clean || clean === ':' || clean === '**:') return null;
+                  return <li key={idx} className="mb-0">- {clean}</li>;
+                })}
+            </ul>
+          </div>
+        )}
+        {sections['개선이 가능한 부분'] && (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">개선이 가능한 부분</div>
+            <ul className="list-disc pl-5 text-gray-900 dark:text-gray-100">
+              {sections['개선이 가능한 부분']
+                .split(/\n|\r/)
+                .filter((line: string) => line.trim() && line.replace(/^[-•\s]+/, '').trim() !== '**' && line.replace(/^[-•\s]+/, '').trim() !== ':')
+                .map((line: string, idx: number) => {
+                  const clean = line.replace(/^[-•\s]+/, '').replace(/^\*\*:?$/, '').replace(/^:?$/, '').trim();
+                  if (!clean || clean === ':' || clean === '**:') return null;
+                  return <li key={idx} className="mb-0">- {clean}</li>;
+                })}
+            </ul>
+          </div>
+        )}
+        {sections['추천 포인트/다음 제안'] && (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">추천 포인트/다음 제안</div>
+            <div className="text-gray-900 dark:text-gray-100 whitespace-pre-line">{sections['추천 포인트/다음 제안']}</div>
+          </div>
+        )}
+        {sections['기술적 피드백'] && (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="font-bold text-base mb-1 text-blue-700 dark:text-blue-300">기술적 피드백</div>
+            <div className="text-gray-900 dark:text-gray-100 whitespace-pre-line">{sections['기술적 피드백']}</div>
           </div>
         )}
       </div>
@@ -379,16 +424,22 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
         </button>
       </div>
       
-      <button
-        type="submit"
-        className="self-end bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 transition-colors shadow"
-        disabled={loading || submitted || text.trim() === '' || `${text}_${feedbackType}` === lastFeedbackText}
-      >
-        {loading ? `${feedbackType === 'ai' ? 'AI' : '기본'} 피드백 생성 중${loadingDots}` : '피드백 받기'}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          type="submit"
+          className="self-end bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 transition-colors shadow"
+          disabled={loading || submitted || text.trim() === '' || `${text}_${feedbackType}` === lastFeedbackText}
+        >
+          {loading ? `${feedbackType === 'ai' ? 'AI' : '기본'} 피드백 생성 중${loadingDots}` : '피드백 받기'}
+        </button>
+      </div>
       {submitted && (
         <div className="mt-2 text-blue-700 dark:text-blue-300 max-w-3xl mx-auto w-full">
-          {error && <span className="text-red-500">{error}</span>}
+          {error && (
+            <div className="text-red-500">
+              {typeof error === 'string' ? error : error}
+            </div>
+          )}
           {loading && (
             <div className="flex flex-col gap-2 mt-2">
               <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-base text-gray-900 dark:text-gray-100 text-center">

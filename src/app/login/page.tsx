@@ -247,12 +247,32 @@ export default function LoginPage() {
                   {validationErrors.password}
                 </div>
               )}
+              {isLogin && (
+                <div className="mt-2 text-right">
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    비밀번호를 잊으셨나요?
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 
           {error && (
-            <div className="text-red-600 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-              {error}
+            <div className="text-red-600 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800 font-medium">
+              ⚠️ {error}
+              {error.includes('이미 로그인 중입니다') && (
+                <div className="mt-2">
+                  <button
+                    onClick={() => window.location.href = '/'}
+                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md transition-colors"
+                  >
+                    홈으로 이동
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
