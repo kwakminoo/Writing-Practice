@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import { UserSubscription } from "../types/subscription";
@@ -22,7 +23,6 @@ export default function Navbar() {
   useEffect(() => {
     if (user) {
       fetchSubscriptionInfo();
-      fetchUserCoins();
     }
   }, [user]);
 
@@ -46,26 +46,24 @@ export default function Navbar() {
     }
   };
 
-  const fetchUserCoins = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('coins')
-        .eq('id', user?.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('코인 정보 조회 오류:', error);
-        setUserCoins(0);
-        return;
-      }
-
-      setUserCoins(data?.coins || 0);
-    } catch (err) {
-      console.error('코인 정보 조회 중 오류:', err);
-      setUserCoins(0);
-    }
-  };
+  const { data: coinBalance } = useQuery<number>({
+    queryKey: ["coin-balance", user?.id],
+    enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000,
+    queryFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return 0;
+      const res = await fetch('/api/coins/balance', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      return res.ok ? (json.balance ?? 0) : 0;
+    },
+  });
 
 function DarkModeToggleInline() {
   const [isDark, setIsDark] = useState(false);
@@ -127,7 +125,7 @@ function DarkModeToggleInline() {
               안녕하세요, {user.name || user.email}님
             </span>
             <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 rounded text-xs font-medium">
-              <span className="text-yellow-800 dark:text-yellow-200">{userCoins}코인</span>
+              <span className="text-yellow-800 dark:text-yellow-200">{coinBalance ?? 0}코인</span>
             </div>
             <Link
               href="/profile"

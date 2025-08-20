@@ -143,6 +143,36 @@ export default function BookmarksPage() {
     }
   };
 
+  // 저장된 content에서 "문제:"와 "작성글:"을 분리
+  const splitContent = (raw: string): { problemText: string | null; userText: string } => {
+    if (!raw) return { problemText: null, userText: '' };
+    const problemLabel = '문제:';
+    const userLabel = '작성글:';
+
+    const problemIdx = raw.indexOf(problemLabel);
+    const userIdx = raw.indexOf(userLabel);
+
+    // 두 라벨 모두 존재할 때
+    if (problemIdx !== -1 && userIdx !== -1) {
+      const problemPart = raw
+        .slice(problemIdx + problemLabel.length, userIdx)
+        .trim();
+      const userPart = raw
+        .slice(userIdx + userLabel.length)
+        .trim();
+      return { problemText: problemPart || null, userText: userPart };
+    }
+
+    // "작성글:"만 있는 경우
+    if (userIdx !== -1) {
+      const userPart = raw.slice(userIdx + userLabel.length).trim();
+      return { problemText: null, userText: userPart };
+    }
+
+    // 라벨이 없으면 전체를 사용자 글로 처리
+    return { problemText: null, userText: raw };
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -251,30 +281,31 @@ export default function BookmarksPage() {
                
                {/* 스크롤 가능한 내용 */}
                <div className="flex-1 overflow-y-auto p-6">
-                
-                {selectedWriting.problem_id && selectedWriting.practice_problems && (
-                  <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <h3 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">
-                      연습문제
-                    </h3>
-                    <p className="text-blue-600 dark:text-blue-400 text-sm">
-                      {selectedWriting.practice_problems.prompt}
-                    </p>
-                  </div>
-                )}
-                
-                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    작성 내용
-                  </h3>
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <pre className="whitespace-pre-wrap text-gray-900 dark:text-gray-100 text-sm">
-                      {selectedWriting.content}
-                    </pre>
-                  </div>
-                </div>
-                
-                                 <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                 
+                 {(() => {
+                   const parts = splitContent(selectedWriting.content);
+                   const problemText = selectedWriting.practice_problems?.prompt || parts.problemText;
+                   return (
+                     <>
+                       {problemText && (
+                         <div className="mb-4">
+                           <h3 className="font-semibold text-gray-900 dark:text-white mb-2">문제</h3>
+                           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                             <pre className="whitespace-pre-wrap text-blue-800 dark:text-blue-200 text-sm">{problemText}</pre>
+                           </div>
+                         </div>
+                       )}
+                       <div className="mb-4">
+                         <h3 className="font-semibold text-gray-900 dark:text-white mb-2">작성 내용</h3>
+                         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                           <pre className="whitespace-pre-wrap text-gray-900 dark:text-gray-100 text-sm">{parts.userText}</pre>
+                         </div>
+                       </div>
+                     </>
+                   );
+                 })()}
+                 
+                 <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                    <span>작성일: {formatDate(selectedWriting.created_at)}</span>
                    <div className="flex items-center gap-4">
                      <span>글자 수: {selectedWriting.content.length}자</span>
@@ -290,10 +321,10 @@ export default function BookmarksPage() {
                      </button>
                    </div>
                  </div>
-              </div>
-            </div>
-          </div>
-        )}
+               </div>
+             </div>
+           </div>
+         )}
       </div>
     </div>
   );
