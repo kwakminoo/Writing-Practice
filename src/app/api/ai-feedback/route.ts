@@ -1,76 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// 서버 사이드용 Supabase 클라이언트 (service_role 키 사용)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-console.log('Supabase URL:', supabaseUrl);
-console.log('Service Role Key exists:', !!supabaseServiceKey);
-
-// 일반 클라이언트 사용 (RLS 비활성화 상태)
-const supabase = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+import { authenticateUser, getUserCoinBalance, deductUserCoins } from '../../../lib/auth';
+import { supabaseServer } from '../../../lib/supabaseClient';
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('=== AI 피드백 API 호출 시작 ===');
-    
     const { content, category, practiceType } = await req.json();
-    console.log('받은 데이터:', { content: content?.length, category, practiceType });
+    
     if (!content || typeof content !== 'string') {
-      console.error('Invalid content provided:', { content, category, practiceType });
       return NextResponse.json({ error: 'Invalid content provided' }, { status: 400 });
     }
 
-    console.log('Content length:', content.length);
-    console.log('Category:', category);
-    console.log('Practice type:', practiceType);
-
-    // 사용자 인증 확인
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('Authorization header missing or invalid');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // 사용자 인증
+    const authResult = await authenticateUser(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
-    console.log('Token length:', token.length);
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    console.log('User authenticated:', user.id);
-
-    // AI 피드백 서비스 가격 (고정값)
+    const user = authResult.user;
     const requiredCoins = 10;
 
-    // 현재 코인 잔액 확인 (users 테이블의 coins 컬럼)
-    console.log('사용자 코인 잔액 조회 시작...');
-    console.log('사용자 ID:', user.id);
-    
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('coins')
-      .eq('id', user.id)
-      .single();
-
-    console.log('코인 조회 결과:', { userData, userError });
-
-    if (userError) {
-      console.error('사용자 코인 잔액 조회 오류:', userError);
-      return NextResponse.json({ error: 'Failed to fetch user coin balance' }, { status: 500 });
+    // 코인 잔액 확인
+    const balanceResult = await getUserCoinBalance(user.id);
+    if (!balanceResult.success) {
+      return NextResponse.json({ error: balanceResult.error }, { status: 500 });
     }
 
-    const currentCoins = userData?.coins || 0;
-    console.log('Current coins:', currentCoins);
-    
-    // 코인 부족 확인
+    const currentCoins = balanceResult.balance!;
     if (currentCoins < requiredCoins) {
-      console.log('Insufficient coins:', { currentCoins, requiredCoins });
       return NextResponse.json({ 
         error: 'Insufficient coins',
         currentBalance: currentCoins,
@@ -80,11 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    console.log('OpenAI API 키 존재:', !!apiKey);
-    console.log('OpenAI API 키 길이:', apiKey?.length || 0);
-    
     if (!apiKey) {
-      console.error('OpenAI API key not set');
       return NextResponse.json({ error: 'API Key not set' }, { status: 500 });
     }
 
@@ -154,7 +106,7 @@ export async function POST(req: NextRequest) {
 - 4.5~5.0: 뛰어남 (전문가 수준)
 - 3.5~4.4: 좋음 (평균 이상)
 - 2.5~3.4: 보통 (평균 수준)
-- 1.0~2.4: 부족 (개선 필요)`
+- 1.0~2.4: 부족 (개선 필요)`;
 
     const prompt = `당신은 소설 창작 평가 전문가입니다. 지금부터 사용자가 작성한 단편소설을 읽고, 아래 순서와 기준에 따라 평가해 주세요. 답변은 반드시 지정된 순서를 지켜 주세요.
 
@@ -188,8 +140,8 @@ ${content}
 (글쓴이에게 따뜻하고 격려하는 말로 마무리한다 메시지 1-2문장)`;
 
     const isStream = req.nextUrl.searchParams.get('stream') === '1';
-
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // 더 빠른 모델 사용 (gpt-4o 대신)
+    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    
     const makeChatBody = (isStream: boolean, promptText: string) => {
       const base: any = {
         model,
@@ -197,27 +149,22 @@ ${content}
           { role: 'system', content: '당신은 글쓰기 전문가입니다. 한국어로 친절하고 구체적인 피드백을 제공해주세요.' },
           { role: 'user', content: promptText },
         ],
-        temperature: 0.5, // 더 낮은 temperature로 일관성 향상
+        temperature: 0.5,
       };
       if (isStream) base.stream = true;
       if (model.startsWith('gpt-5')) {
-        base.max_completion_tokens = 2500; // 토큰 수 줄임
+        base.max_completion_tokens = 2500;
       } else {
-        base.max_tokens = 2500; // 토큰 수 줄임
+        base.max_tokens = 2500;
       }
       return base;
     };
-    if (isStream) {
-      // 스트리밍 모드: 코인을 선차감하여 즉시 반영되도록 처리
-      console.log('Streaming mode enabled. Deducting coins before streaming...');
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ coins: currentCoins - requiredCoins })
-        .eq('id', user.id);
 
-      if (updateError) {
-        console.error('코인 차감 오류:', updateError);
-        return NextResponse.json({ error: 'Failed to deduct coins' }, { status: 500 });
+    if (isStream) {
+      // 스트리밍 모드: 코인을 선차감
+      const deductResult = await deductUserCoins(user.id, requiredCoins);
+      if (!deductResult.success) {
+        return NextResponse.json({ error: deductResult.error }, { status: 500 });
       }
 
       const encoder = new TextEncoder();
@@ -233,7 +180,6 @@ ${content}
       });
 
       if (!openAiRes.ok || !openAiRes.body) {
-        console.error('OpenAI stream failed:', openAiRes.status);
         return NextResponse.json({ error: 'AI 스트리밍 시작에 실패했습니다.' }, { status: 500 });
       }
 
@@ -247,7 +193,6 @@ ${content}
               const { value, done } = await reader.read();
               if (done) break;
               buffer += decoder.decode(value, { stream: true });
-              // OpenAI는 SSE 형식으로 data: ...\n\n 이벤트를 보냄
               const parts = buffer.split('\n\n');
               buffer = parts.pop() || '';
               for (const part of parts) {
@@ -267,19 +212,19 @@ ${content}
               }
             }
           } catch (err) {
-            console.error('Stream read error:', err);
+            // Stream read error
           } finally {
             controller.close();
           }
         }
       });
 
-      // 스트림 종료 후 비동기로 피드백 저장 (대기하지 않음)
+      // 스트림 종료 후 비동기로 피드백 저장
       stream.pipeTo(new WritableStream({
         close: async () => {
           try {
             if (accumulated.trim().length > 0) {
-              const { error: feedbackError } = await supabase
+              const { error: feedbackError } = await supabaseServer
                 .from('ai_feedbacks')
                 .insert({
                   user_id: user.id,
@@ -288,15 +233,15 @@ ${content}
                   rating: null,
                 });
               if (feedbackError) {
-                console.error('피드백 저장 오류 (stream):', feedbackError);
+                // 피드백 저장 오류는 로그만 남김
               }
             }
           } catch (e) {
-            console.error('피드백 저장 중 예외 (stream):', e);
+            // 피드백 저장 중 예외는 무시
           }
         }
       })).catch(() => {
-        // 파이프 도중 에러는 로그만 남김
+        // 파이프 도중 에러는 무시
       });
 
       return new Response(stream, {
@@ -308,8 +253,7 @@ ${content}
       });
     }
 
-    // 기본(비스트리밍) 경로 유지
-    console.log('Calling OpenAI API (non-stream)...');
+    // 기본(비스트리밍) 경로
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -319,17 +263,15 @@ ${content}
       body: JSON.stringify(makeChatBody(false, prompt)),
     });
 
-    console.log('OpenAI response status:', response.status);
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('OpenAI API 오류:', errorData);
       return NextResponse.json({ error: 'AI 피드백 생성 중 오류가 발생했습니다.' }, { status: 500 });
     }
 
     const data = await response.json();
     const feedback = data.choices[0]?.message?.content || '피드백을 생성할 수 없습니다.';
 
-    // 섹션 분리(서버 사이드) – 클라이언트 파싱 실패 대비용
+    // 섹션 분리(서버 사이드)
     const splitSections = (md: string) => {
       try {
         const isTechTitle = (title: string) => /기술적\s*피드백|기술\s*피드백|테크니컬|technical|문법|표현|구조/i.test(title);
@@ -361,23 +303,17 @@ ${content}
         return { main: md, technical: '', comment: '' };
       }
     };
+    
     const sections = splitSections(feedback);
-    console.log('Feedback generated, length:', feedback.length);
 
-    console.log('Deducting coins...');
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ coins: currentCoins - requiredCoins })
-      .eq('id', user.id);
-
-    if (updateError) {
-      console.error('코인 차감 오류:', updateError);
-      return NextResponse.json({ error: 'Failed to deduct coins' }, { status: 500 });
+    // 코인 차감
+    const deductResult = await deductUserCoins(user.id, requiredCoins);
+    if (!deductResult.success) {
+      return NextResponse.json({ error: deductResult.error }, { status: 500 });
     }
 
-    console.log('Coins deducted successfully');
-    console.log('Saving feedback...');
-    const { error: feedbackError } = await supabase
+    // 피드백 저장
+    const { error: feedbackError } = await supabaseServer
       .from('ai_feedbacks')
       .insert({
         user_id: user.id,
@@ -387,10 +323,9 @@ ${content}
       });
 
     if (feedbackError) {
-      console.error('피드백 저장 오류:', feedbackError);
+      // 피드백 저장 오류는 로그만 남김
     }
 
-    console.log('AI 피드백 API 완료');
     return NextResponse.json({
       feedback,
       sections,
@@ -399,7 +334,6 @@ ${content}
     }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
 
   } catch (error) {
-    console.error('AI 피드백 생성 중 오류:', error);
     return NextResponse.json({ 
       error: 'AI 서버 요청 중 오류가 발생했습니다.',
       details: error instanceof Error ? error.message : 'Unknown error'

@@ -1,11 +1,10 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import Link from "next/link";
 import { Nanum_Myeongjo } from 'next/font/google';
+import AIFeedbackRenderer from './AIFeedbackRenderer';
 
 // 소설용 폰트는 모듈 스코프에서 로드해야 함 (Next.js 규칙)
 const novelFont = Nanum_Myeongjo({ subsets: ['latin'], weight: ['400', '700', '800'] });
@@ -22,55 +21,6 @@ function isCopyType(category: string) {
   // '필사', 'copy' 등 필사 유형 감지
   return category === '필사' || category.toLowerCase().includes('copy');
 }
-
-function parseAIFeedback(feedback: string) {
-  // 1. 감상 요약, 2. 좋았던 점, 3. 개선점, 4. 추천/제안, 5. 기술적 피드백
-  const matches = feedback.match(/\d+\.\s[\s\S]*?(?=(\n\d+\.\s|$))/g);
-  if (matches) {
-    return matches.map(s => s.replace(/^\d+\.\s/, '').trim());
-  }
-  // fallback: 번호별 split
-  const items = feedback.split(/\n?\s*\d+\.\s/).filter(Boolean);
-  if (items.length && !feedback.trim().startsWith('1.')) {
-    items[0] = '1. ' + items[0];
-  }
-  return items;
-}
-
-function renderList(text: string) {
-  // '-'로 시작하는 리스트를 ul/li로 변환, 나머지는 그대로
-  const lines = text.split(/\n|\r/);
-  const items: string[] = [];
-  let buffer: string[] = [];
-  lines.forEach((line) => {
-    if (line.trim().startsWith('-')) {
-      if (buffer.length) items.push(buffer.join('\n'));
-      buffer = [line.replace(/^\-\s*/, '')];
-    } else if (buffer.length) {
-      buffer.push(line);
-    }
-  });
-  if (buffer.length) items.push(buffer.join('\n'));
-  if (items.length > 0) {
-    return (
-      <ul className="list-disc pl-6">
-        {items.map((item, idx) => (
-          <li key={idx} style={{ whiteSpace: 'pre-line' }}>{item}</li>
-        ))}
-      </ul>
-    );
-  }
-  // 리스트가 아니면 그냥 출력
-  return <div style={{ whiteSpace: 'pre-line', overflowX: 'auto' }}>{text}</div>;
-}
-
-const FEEDBACK_LABELS = [
-  '감상 요약',
-  '좋았던 점',
-  '개선이 가능한 부분',
-  '추천 포인트/다음 제안',
-  '기술적 피드백(선택)' // 5번째 항목은 선택적
-];
 
 export default function WritingArea({ category, practiceType, isFreeWriting = false, problemId, problemPrompt }: WritingAreaProps) {
   const { user } = useAuth();
@@ -200,10 +150,10 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
               }),
             });
             
-                         if (!saveRes.ok) {
-               const errorData = await saveRes.json();
-               console.error('글 저장 실패:', saveRes.status, errorData);
-             }
+            if (!saveRes.ok) {
+              const errorData = await saveRes.json();
+              console.error('글 저장 실패:', saveRes.status, errorData);
+            }
           } catch (saveErr) {
             console.error('글 저장 중 오류:', saveErr);
           }
@@ -259,8 +209,6 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
       />
     );
   }
-
-
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-3xl mx-auto">
@@ -324,148 +272,11 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
         </button>
       </div>
 
-          {aiFeedback && !loading && (
-            <div className="mt-6 max-w-4xl mx-auto w-full">
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg border border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-lg">🤖</span>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI 피드백 결과</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">전문가의 상세한 분석</p>
-                  </div>
-                </div>
-                
-                <div className="prose prose-lg dark:prose-invert max-w-none">
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      // 별점 평가 테이블 스타일링
-                      table: ({children, ...props}) => (
-                        <div className="overflow-x-auto my-6">
-                          <table className="min-w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm" {...props}>
-                            {children}
-                          </table>
-                        </div>
-                      ),
-                      thead: ({children, ...props}) => (
-                        <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20" {...props}>
-                          {children}
-                        </thead>
-                      ),
-                      th: ({children, ...props}) => (
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700" {...props}>
-                          {children}
-                        </th>
-                      ),
-                      td: ({children, ...props}) => (
-                        <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800" {...props}>
-                          {children}
-                        </td>
-                      ),
-                      // 헤더 스타일링
-                      h2: ({children, ...props}) => {
-                        const text = children?.toString() || '';
-                        if (text.includes('별점 평가')) {
-                          return (
-                            <div className="flex items-center gap-3 mb-6 mt-8">
-                              <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
-                                <span className="text-yellow-600 dark:text-yellow-400 text-sm"></span>
-                              </div>
-                              <h2 className="text-xl font-bold text-gray-900 dark:text-white" {...props}>
-                                {children}
-                              </h2>
-                            </div>
-                          );
-                        } else if (text.includes('감상')) {
-                          return (
-                            <div className="flex items-center gap-3 mb-6 mt-8">
-                              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                                <span className="text-blue-600 dark:text-blue-400 text-sm"></span>
-                              </div>
-                              <h2 className="text-xl font-bold text-gray-900 dark:text-white" {...props}>
-                                {children}
-                              </h2>
-                            </div>
-                          );
-                        } else if (text.includes('좋았던 점')) {
-                          return (
-                            <div className="flex items-center gap-3 mb-6 mt-8">
-                              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                                <span className="text-green-600 dark:text-green-400 text-sm"></span>
-                              </div>
-                              <h2 className="text-xl font-bold text-gray-900 dark:text-white" {...props}>
-                                {children}
-                              </h2>
-                            </div>
-                          );
-                        } else if (text.includes('개선이 가능한 부분')) {
-                          return (
-                            <div className="flex items-center gap-3 mb-6 mt-8">
-                              <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                                <span className="text-orange-600 dark:text-orange-400 text-sm"></span>
-                              </div>
-                              <h2 className="text-xl font-bold text-gray-900 dark:text-white" {...props}>
-                                {children}
-                              </h2>
-                            </div>
-                          );
-                        } else if (text.includes('글 스타일 분석')) {
-                          return (
-                            <div className="flex items-center gap-3 mb-6 mt-8">
-                              <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                                <span className="text-purple-600 dark:text-purple-400 text-sm"></span>
-                              </div>
-                              <h2 className="text-xl font-bold text-gray-900 dark:text-white" {...props}>
-                                {children}
-                              </h2>
-                            </div>
-                          );
-                        } else if (text.includes('코멘트')) {
-                          return (
-                            <div className="flex items-center gap-3 mb-6 mt-8">
-                              <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900/30 rounded-full flex items-center justify-center">
-                                <span className="text-pink-600 dark:text-pink-400 text-sm"></span>
-                              </div>
-                              <h2 className="text-xl font-bold text-gray-900 dark:text-white" {...props}>
-                                {children}
-                              </h2>
-                            </div>
-                          );
-                        }
-                        return (
-                          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 mt-8" {...props}>
-                            {children}
-                          </h2>
-                        );
-                      },
-                      // 리스트 스타일링
-                      ul: ({children, ...props}) => (
-                        <ul className="space-y-3 my-4" {...props}>
-                          {children}
-                        </ul>
-                      ),
-                      li: ({children, ...props}) => (
-                        <li className="flex items-start gap-3 text-gray-700 dark:text-gray-300" {...props}>
-                          <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></span>
-                          <span>{children}</span>
-                        </li>
-                      ),
-                      // 단락 스타일링
-                      p: ({children, ...props}) => (
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props}>
-                          {children}
-                        </p>
-                      ),
-                    }}
-                  >
-                    {aiFeedback}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </div>
-          )}
+      {aiFeedback && !loading && (
+        <div className="mt-6 max-w-4xl mx-auto w-full">
+          <AIFeedbackRenderer feedback={aiFeedback} />
+        </div>
+      )}
     </form>
   );
 } 

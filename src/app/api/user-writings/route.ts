@@ -1,99 +1,79 @@
-import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { authenticateUser } from '../../../lib/auth';
+import { supabaseServer } from '../../../lib/supabaseClient';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    console.log('=== 글 저장 API 시작 ===');
+    const { user_id, problem_id, content, title, type, is_pinned } = await req.json();
     
-    // 인증 확인
-    const authHeader = req.headers.get('authorization');
-    console.log('Auth header:', authHeader ? '있음' : '없음');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('인증 헤더 오류');
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+    if (!user_id || !content || !title || !type) {
+      return NextResponse.json({ error: '필수 필드가 누락되었습니다.' }, { status: 400 });
     }
 
-    const token = authHeader.substring(7);
-    console.log('토큰 길이:', token.length);
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.log('인증 오류:', authError);
-      return NextResponse.json({ error: '유효하지 않은 토큰입니다.' }, { status: 401 });
+    // 사용자 인증
+    const authResult = await authenticateUser(req);
+    if (!authResult.success) {
+      return NextResponse.json({ error: authResult.error }, { status: 401 });
     }
-    
-    console.log('인증 성공, 사용자 ID:', user.id);
 
-    const { user_id, problem_id, content, title, type, is_pinned = false } = await req.json();
-    console.log('받은 데이터:', { user_id, problem_id, content: content?.length, title, type, is_pinned });
+    const user = authResult.user;
     
-    // 사용자 구독 상태 확인 (오류 무시)
-    let subscription = null;
+    // 인증된 사용자와 요청한 사용자가 일치하는지 확인
+    if (user.id !== user_id) {
+      return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
+    }
+
+    // 구독 정보 확인 (저장 용량 제한)
+    let hasActiveSubscription = false;
     try {
-      const { data: subData, error: subscriptionError } = await supabase
+      const { data: subscriptionData, error: subscriptionError } = await supabaseServer
         .from('user_subscriptions')
-        .select('subscription_type, subscription_status')
-        .eq('user_id', user_id)
+        .select('subscription_status, subscription_type')
+        .eq('user_id', user.id)
         .eq('subscription_status', 'active')
         .single();
-      
-      if (subscriptionError && subscriptionError.code !== 'PGRST116') {
-        console.log('구독 정보 조회 오류:', subscriptionError);
-      } else {
-        subscription = subData;
+
+      if (!subscriptionError && subscriptionData) {
+        hasActiveSubscription = true;
       }
     } catch (err) {
-      console.log('구독 정보 조회 중 예외:', err);
+      // 구독 정보 조회 실패는 무시하고 계속 진행
     }
-    
-    // 기본값은 'free'로 설정
-    let storage_tier = 'free';
-    if (subscription?.subscription_type === 'premium') {
-      storage_tier = 'premium';
-    } else if (subscription?.subscription_type === 'basic') {
-      storage_tier = 'basic';
-    }
-    
-    // 글 저장 (모든 필드 포함)
-    console.log('저장할 데이터:', { 
-      user_id, 
-      content: content?.length, 
-      title: title || '글쓰기',
-      storage_tier,
-      type: type || 'free_writing',
+
+    // 저장할 데이터 준비
+    const writingData = {
+      user_id,
       problem_id: problem_id || null,
-      is_pinned: is_pinned || false
-    });
-    
-    const { data, error } = await supabase
+      content,
+      title,
+      type,
+      is_pinned: is_pinned || false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // 글 저장
+    const { data, error } = await supabaseServer
       .from('user_writings')
-      .insert([{ 
-        user_id, 
-        content, 
-        title: title || '글쓰기',
-        storage_tier,
-        type: type || 'free_writing',
-        problem_id: problem_id || null,
-        is_pinned: is_pinned || false
-      }])
+      .insert(writingData)
       .select()
       .single();
-    
+
     if (error) {
-      console.error('글 저장 오류:', error);
-      console.error('오류 코드:', error.code);
-      console.error('오류 메시지:', error.message);
-      console.error('오류 세부사항:', error.details);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: '글 저장에 실패했습니다.' }, { status: 500 });
     }
-    
-    console.log('글 저장 성공:', data);
-    return NextResponse.json({ data });
+
+    return NextResponse.json({ 
+      success: true, 
+      writing: data,
+      hasActiveSubscription 
+    }, { status: 201 });
+
   } catch (error) {
-    console.error('API 오류:', error);
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return NextResponse.json({ 
+      error: '서버 오류가 발생했습니다.',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -107,7 +87,7 @@ export async function GET(req: Request) {
     }
     
     // 사용자 구독 상태 확인
-    const { data: subscription } = await supabase
+    const { data: subscription } = await supabaseServer
       .from('user_subscriptions')
       .select('subscription_type, subscription_status')
       .eq('user_id', user_id)
@@ -117,7 +97,7 @@ export async function GET(req: Request) {
     const isPremium = subscription?.subscription_type === 'premium';
     
     // 모든 글 조회 (단순화)
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('user_writings')
       .select('*')
       .eq('user_id', user_id)
