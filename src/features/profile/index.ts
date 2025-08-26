@@ -10,8 +10,11 @@ export { getProfile, updateProfile } from './api/profile';
 export {
   ProfileDataSchema,
   ProfileFormDataSchema,
-  ProfileData,
-  ProfileFormData,
   validateProfileData,
   validateProfileFormData
+} from './schema/profile';
+
+export type {
+  ProfileData,
+  ProfileFormData
 } from './schema/profile';

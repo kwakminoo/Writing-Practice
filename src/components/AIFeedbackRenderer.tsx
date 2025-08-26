@@ -20,7 +20,7 @@ export default function AIFeedbackRenderer({ feedback, className = "" }: AIFeedb
         </div>
       </div>
       
-      <div className="prose prose-lg dark:prose-invert max-w-none">
+      <div className="prose prose-lg dark:prose-invert max-w-none [&>*]:text-gray-700 [&>*]:dark:text-gray-300 [&>*]:leading-relaxed">
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
           components={{
@@ -50,14 +50,13 @@ export default function AIFeedbackRenderer({ feedback, className = "" }: AIFeedb
             // 헤더 스타일링
             h2: ({children, ...props}) => {
               const text = children?.toString() || '';
-              const iconMap: Record<string, { icon: string; bgColor: string; textColor: string }> = {
-                '별점 평가': { icon: '⭐', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30', textColor: 'text-yellow-600 dark:text-yellow-400' },
-                '감상': { icon: '📝', bgColor: 'bg-blue-100 dark:bg-blue-900/30', textColor: 'text-blue-600 dark:text-blue-400' },
-                '좋았던 점': { icon: '✅', bgColor: 'bg-green-100 dark:bg-green-900/30', textColor: 'text-green-600 dark:text-green-400' },
-                '개선이 가능한 부분': { icon: '🔧', bgColor: 'bg-orange-100 dark:bg-orange-900/30', textColor: 'text-orange-600 dark:text-orange-400' },
-                '글 스타일 분석': { icon: '🎨', bgColor: 'bg-purple-100 dark:bg-purple-900/30', textColor: 'text-purple-600 dark:text-purple-400' },
-                '코멘트': { icon: '💬', bgColor: 'bg-pink-100 dark:bg-pink-900/30', textColor: 'text-pink-600 dark:text-pink-400' }
-              };
+                             const iconMap: Record<string, { icon: string; bgColor: string; textColor: string }> = {
+                 '별점 평가': { icon: '⭐', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30', textColor: 'text-yellow-600 dark:text-yellow-400' },
+                 '감상': { icon: '📝', bgColor: 'bg-blue-100 dark:bg-blue-900/30', textColor: 'text-blue-600 dark:text-blue-400' },
+                 '좋았던 점': { icon: '✅', bgColor: 'bg-green-100 dark:bg-green-900/30', textColor: 'text-green-600 dark:text-green-400' },
+                 '개선할 점': { icon: '🔧', bgColor: 'bg-orange-100 dark:bg-orange-900/30', textColor: 'text-orange-600 dark:text-orange-400' },
+                 '코멘트': { icon: '💬', bgColor: 'bg-pink-100 dark:bg-pink-900/30', textColor: 'text-pink-600 dark:text-pink-400' }
+               };
 
               const matchedKey = Object.keys(iconMap).find(key => text.includes(key));
               if (matchedKey) {
@@ -94,7 +93,7 @@ export default function AIFeedbackRenderer({ feedback, className = "" }: AIFeedb
             ),
             // 단락 스타일링
             p: ({children, ...props}) => (
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4" {...props}>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-6 text-base" {...props}>
                 {children}
               </p>
             ),

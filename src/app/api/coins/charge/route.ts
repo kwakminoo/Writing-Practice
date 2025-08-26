@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateUser, getUserCoinBalance } from '../../../lib/auth';
-import { supabaseServer } from '../../../lib/supabaseClient';
+import { authenticateUser, getUserCoinBalance } from '../../../../lib/auth';
+import { supabaseServer } from '../../../../lib/supabaseClient';
 
 export async function POST(request: NextRequest) {
   try {

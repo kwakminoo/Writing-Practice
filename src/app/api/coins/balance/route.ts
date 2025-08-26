@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateUser, getUserCoinBalance } from '../../../lib/auth';
+import { authenticateUser, getUserCoinBalance } from '../../../../lib/auth';
 
 export async function GET(request: NextRequest) {
   try {

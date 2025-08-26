@@ -33,7 +33,7 @@ function PracticeCategoryNav({ current }: { current: string }) {
 
 // 실제 데이터베이스에 있는 타입들로 수정
 const practiceTypes: PracticeType[] = [
-  { key: "필사 연습", label: "이야기 재구성", desc: "주어진 문장(1~2문장)으로 원래 맥락과 무관하게 새로운 이야기를 창작하는 연습. 장르, 결말, 전개 모두 자유롭게 상상하여 창작할 수 있습니다." },
+  { key: "이야기 재구성", label: "이야기 재구성", desc: "주어진 문장(1~2문장)으로 원래 맥락과 무관하게 새로운 이야기를 창작하는 연습. 장르, 결말, 전개 모두 자유롭게 상상하여 창작할 수 있습니다." },
   { key: "문제 풀이", label: "문제 풀이", desc: "상황·갈등 해결형 문제를 완성하는 연습" },
   { key: "테마별 글쓰기", label: "테마별 글쓰기", desc: "특정 주제·장르에 맞춰 글을 쓰는 연습" },
   { key: "제작성 훈련", label: "제작성 훈련", desc: "즉흥 창작, 키워드 조합 등 창의적 글쓰기" },
@@ -203,7 +203,7 @@ export default function FictionPractice() {
                       category={problem.label} 
                       practiceType={problem.type} 
                       problemId={problem.id?.toString()}
-                      problemPrompt={problem.prompt}
+                      problemPrompt={JSON.stringify(problem)}
                     />
                   </div>
                 )}

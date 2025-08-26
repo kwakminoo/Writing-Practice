@@ -98,7 +98,7 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
       // 1. 피드백 요청
       const endpoint = feedbackType === 'ai' ? "/api/ai-feedback" : "/api/basic-feedback";
       const body = feedbackType === 'ai' 
-        ? { content: text, category, practiceType }
+        ? { content: text, category, practiceType, problemPrompt }
         : { content: text, category };
         
       const res = await fetch(endpoint, {

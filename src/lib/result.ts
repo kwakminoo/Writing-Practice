@@ -110,14 +110,14 @@ export const toOption = <T, E>(result: Result<T, E>): T | null => {
 export const combine = <T extends readonly unknown[], E>(
   results: { [K in keyof T]: Result<T[K], E> }
 ): Result<T, E> => {
-  const data: T = [] as unknown as T;
+  const data = [] as unknown as T;
   
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (isFailure(result)) {
       return result;
     }
-    data[i] = result.data;
+    (data as any)[i] = result.data;
   }
   
   return success(data);
@@ -165,6 +165,7 @@ export const tapFailure = <T, E>(
   }
   return result;
 };
+
 
 
 
