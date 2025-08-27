@@ -98,7 +98,7 @@ ${problemPrompt}
 - 문제 요구사항에 대한 충실도를 우선적으로 평가할 것
 - 연습 목적에 맞는 평가를 할 것`;
 
-  } else if (practiceType === '자유 에세이') {
+  } else if (practiceType === '자유 에세이' || practiceType === '에세이 자유') {
     // 자유 에세이 연습
     practiceSpecificPrompt = `당신은 에세이 창작 평가 전문가입니다. 지금부터 사용자가 작성한 '자유 에세이' 글을 읽고 평가해 주세요. 
 이 연습은 자유로운 형식으로 에세이를 작성하는 훈련입니다. 

@@ -81,7 +81,7 @@ export default function AIFeedbackRenderer({ feedback, className = "" }: AIFeedb
             },
             // 리스트 스타일링
             ul: ({children, ...props}) => (
-              <ul className="space-y-3 my-4" {...props}>
+              <ul className="space-y-3 my-4 list-none" {...props}>
                 {children}
               </ul>
             ),
