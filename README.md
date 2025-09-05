@@ -1,6 +1,50 @@
-# 글쓰기 훈련소
+# 📝 글쓰기 훈련소
 
-글쓰기 연습을 위한 웹 애플리케이션입니다. 다양한 글쓰기 모드와 AI 피드백 기능을 제공합니다.
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-3.0-green?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+
+> **다양한 글쓰기 연습과 AI 피드백으로 글쓰기 실력을 향상시키는 웹 애플리케이션**
+
+## 🌟 주요 기능
+
+- **4가지 글쓰기 장르**: 소설, 시, 시나리오, 에세이
+- **32가지 연습방식**: 각 장르별 8가지 다양한 연습 방법
+- **AI 기반 피드백**: 실시간 글쓰기 분석 및 개선 제안
+- **연습모드 & 자유글쓰기**: 체계적 연습과 자유로운 창작 모두 지원
+- **다크모드 지원**: 편안한 글쓰기 환경 제공
+
+## 📱 웹사이트 미리보기
+
+### 🏠 메인 페이지
+![메인페이지](screan%20Image/메인페이지.png)
+*깔끔하고 직관적인 메인 화면으로 다양한 글쓰기 모드에 쉽게 접근할 수 있습니다.*
+
+### 📚 연습 모드
+![연습모드](screan%20Image/연습모드.png)
+*체계적인 연습 문제를 통해 단계별로 글쓰기 실력을 향상시킬 수 있습니다.*
+
+### ✍️ 자유 글쓰기
+![자유글쓰기](screan%20Image/자유%20글쓰기.png)
+*제약 없이 자유롭게 글을 작성하고 AI 피드백을 받을 수 있습니다.*
+
+### 🤖 AI 피드백
+![피드백](screan%20Image/ㅍ디ㅡ백%201.png)
+*상세하고 구체적인 AI 피드백으로 글쓰기 실력을 한 단계 더 발전시킬 수 있습니다.*
+
+## 🚀 시작하기
+
+1. **회원가입**: 간단한 이메일 인증으로 계정 생성
+2. **장르 선택**: 소설, 시, 시나리오, 에세이 중 원하는 장르 선택
+3. **연습 시작**: 연습모드로 기초 다지기 또는 자유글쓰기로 창작하기
+4. **피드백 받기**: AI가 제공하는 상세한 분석과 개선 제안 확인
+5. **실력 향상**: 꾸준한 연습으로 글쓰기 실력 발전
+
+---
+
+## 📋 상세 기능
 
 ### 추가 예정 사항.
 - 사용자별 기록/통계: 내가 쓴 글, 받은 피드백, 성장 그래프 등 개인화 기능.
@@ -53,13 +97,14 @@ HTML 삽입 금지(필요 시 rehype-sanitize)로 XSS 차단
 
 
 
-## 기능
+### ✨ 핵심 기능
 
-- 다양한 글쓰기 연습 모드 (소설, 시, 에세이, 시나리오 등)
-- AI 기반 글쓰기 피드백
-- 사용자 인증 시스템 (로그인/회원가입)
-- 다크 모드 지원
-- 반응형 디자인
+- **다양한 글쓰기 연습 모드**: 소설, 시, 에세이, 시나리오 등 4가지 장르
+- **AI 기반 실시간 피드백**: 글쓰기 분석 및 구체적인 개선 제안
+- **32가지 연습방식**: 각 장르별 8가지 체계적인 연습 방법
+- **사용자 인증 시스템**: 안전한 로그인/회원가입 및 개인화 서비스
+- **다크 모드 지원**: 눈의 피로를 줄이는 편안한 글쓰기 환경
+- **반응형 디자인**: PC, 태블릿, 모바일 모든 기기에서 최적화된 경험
 
 ## 환경 설정
 
@@ -101,12 +146,27 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 3. **글쓰기 연습**: 다양한 모드에서 글쓰기를 연습하세요.
 4. **AI 피드백**: 작성한 글에 대한 AI 피드백을 받으세요.
 
-## 기술 스택
+## 🛠️ 기술 스택
 
-- **Frontend**: Next.js 14, React, TypeScript
-- **Styling**: Tailwind CSS
-- **Authentication**: Supabase Auth
-- **Database**: Supabase PostgreSQL
+### Frontend
+- **Next.js 14** - React 기반 풀스택 프레임워크
+- **React 18** - 사용자 인터페이스 구축
+- **TypeScript** - 타입 안전성과 개발 생산성 향상
+- **Tailwind CSS** - 유틸리티 우선 CSS 프레임워크
+
+### Backend & Database
+- **Supabase** - 백엔드 서비스 (인증, 데이터베이스, 실시간 기능)
+- **PostgreSQL** - 관계형 데이터베이스
+- **Supabase Auth** - 사용자 인증 및 권한 관리
+
+### AI & 외부 서비스
+- **OpenAI API** - AI 기반 글쓰기 피드백
+- **Hunspell** - 맞춤법 검사 (한국어 지원)
+
+### 개발 도구
+- **ESLint** - 코드 품질 관리
+- **Prettier** - 코드 포맷팅
+- **Git** - 버전 관리
 >>>>>>> d1c8c83e769c379f61fc677943ba4fd6a0d8fba4
 
 ## 📚 글쓰기 훈련소 - 파트별 연습방식 총정리
