@@ -318,8 +318,10 @@ ${category === '에세이' ? '(에세이의 경우, 논리와 구조가 어떻�
               content: content
             }
           ],
-          temperature: 0.7,
-          max_tokens: 1500
+          temperature: 0.5,
+          max_tokens: 1200,
+          presence_penalty: 0.1,
+          frequency_penalty: 0.1
         })
       });
 
@@ -335,43 +337,38 @@ ${category === '에세이' ? '(에세이의 경우, 논리와 구조가 어떻�
       const aiFeedback = data.choices[0].message.content;
       console.log('7. OpenAI API 호출 완료');
 
-      // 8. 코인 차감
-      console.log('8. 코인 차감 시작');
-      const deductResult = await deductUserCoins(user.id, requiredCoins);
-      if (!deductResult.success) {
-        console.error('8. 오류: 코인 차감 실패:', deductResult.error);
-        // 코인 차감 실패해도 피드백은 반환
-      }
-      console.log('8. 코인 차감 완료');
+      // 8. 코인 차감과 글 저장을 병렬로 처리
+      console.log('8. 코인 차감 및 글 저장 시작');
+      const [deductResult, saveResult] = await Promise.allSettled([
+        deductUserCoins(user.id, requiredCoins),
+        supabaseServer
+          .from('user_writings')
+          .insert({
+            user_id: user.id,
+            content: content,
+            category: category,
+            practice_type: practiceType,
+            problem_prompt: safeProblemPrompt,
+            ai_feedback: aiFeedback,
+            coins_used: requiredCoins
+          })
+      ]);
 
-      // 9. 사용자 글 저장
-      console.log('9. 사용자 글 저장 시작');
-      const { error: saveError } = await supabaseServer
-        .from('user_writings')
-        .insert({
-          user_id: user.id,
-          content: content,
-          category: category,
-          practice_type: practiceType,
-          problem_prompt: safeProblemPrompt,
-          ai_feedback: aiFeedback,
-          coins_used: requiredCoins
-        });
-
-      if (saveError) {
-        console.error('9. 오류: 글 저장 실패:', saveError);
+      if (deductResult.status === 'rejected') {
+        console.error('8. 오류: 코인 차감 실패:', deductResult.reason);
       }
-      console.log('9. 사용자 글 저장 완료');
+      if (saveResult.status === 'rejected') {
+        console.error('8. 오류: 글 저장 실패:', saveResult.reason);
+      }
+      console.log('8. 코인 차감 및 글 저장 완료');
 
       // 10. 응답 반환
       console.log('10. 응답 반환 시작');
-      const result = NextResponse.json({ 
+      return NextResponse.json({ 
         feedback: aiFeedback,
         coinsUsed: requiredCoins,
         remainingCoins: currentCoins - requiredCoins
       });
-      console.log('10. 응답 반환 완료');
-      return result;
 
     } catch (apiError) {
       console.error('7. 오류: OpenAI API 호출 실패:', apiError);
