@@ -1,0 +1,2 @@
+-- Current SQL Script
+-- 작성 연습 스튜디오 프로젝트용 SQL 스크립트
