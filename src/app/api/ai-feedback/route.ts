@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, getUserCoinBalance, deductUserCoins } from '../../../lib/auth';
-import { createClient } from '@supabase/supabase-js';
-
-// 하드코딩된 Supabase 클라이언트 (환경 변수 문제 해결)
-const supabaseUrl = 'https://zvhhjroidnpuxxhskffz.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2aGhqcm9pZG5wdXh4aHNrZmZ6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Mjc0ODI0OSwiZXhwIjoyMDY4MzI0MjQ5fQ.29sSyISNUcFAUPiZEe96lsJg1kTLwciQUUGQu0s0hYg';
-const supabaseServer = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+import { supabaseServer } from '@/lib/index';
 import { getFictionPrompt, getFictionRatingCriteria, getFictionRatingDetails } from './fiction-prompts';
 import { getScreenplayPrompt, getScreenplayRatingCriteria } from './screenplay-prompts';
 import { getPoetryPrompt, getPoetryRatingCriteria } from './poetry-prompts';
