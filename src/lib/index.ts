@@ -3,16 +3,33 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// 하드코딩된 Supabase 클라이언트 (환경 변수 문제 해결)
-const supabaseUrl = 'https://zvhhjroidnpuxxhskffz.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2aGhqcm9pZG5wdXh4aHNrZmZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDgyNDksImV4cCI6MjA2ODMyNDI0OX0.29sSyISNUcFAUPiZEe96lsJg1kTLwciQUUGQu0s0hYg';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2aGhqcm9pZG5wdXh4aHNrZmZ6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Mjc0ODI0OSwiZXhwIjoyMDY4MzI0MjQ5fQ.29sSyISNUcFAUPiZEe96lsJg1kTLwciQUUGQu0s0hYg';
+// 환경 변수에서 Supabase 설정 가져오기
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
-export const supabaseServer = supabaseAdmin;
+// 환경 변수 검증
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('⚠️ Supabase 환경 변수가 설정되지 않았습니다.');
+  console.warn('📝 Vercel에서 환경 변수를 설정해주세요.');
+}
+
+// 더미 클라이언트 생성 (환경 변수가 없을 때)
+const createDummyClient = () => createClient('https://example.supabase.co', 'dummy-key');
+
+// 클라이언트용 Supabase
+export const supabase = (supabaseUrl && supabaseKey) 
+  ? createClient(supabaseUrl, supabaseKey)
+  : createDummyClient();
+
+// 서버용 Supabase (service_role 키 사용)
+export const supabaseAdmin = (supabaseUrl && supabaseServiceKey) 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : createDummyClient();
+
+export const supabaseServer = supabaseServiceKey ? supabaseAdmin : supabase;

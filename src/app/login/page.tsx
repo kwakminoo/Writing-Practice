@@ -107,7 +107,7 @@ export default function LoginPage() {
       );
 
       // 방법 1: 기본 재발송 시도
-      let { error: resendError } = await supabase.auth.resend({
+      const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: resendEmail,
       });

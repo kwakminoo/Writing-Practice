@@ -1,4 +1,4 @@
-import { supabase } from './index';
+import { supabase } from '../index';
 
 // Phase B2 - Coins 비즈니스 로직 분리
 // API route에서 사용할 코인 관련 fetcher 함수들

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 export default function TestPage() {
   const [envVars, setEnvVars] = useState<any>({});
@@ -34,9 +35,9 @@ export default function TestPage() {
         <p>이 페이지가 정상적으로 로드되었다면 기본적인 Next.js 기능은 작동합니다.</p>
       </div>
 
-      <a href="/" className="text-blue-600 hover:underline">
+      <Link href="/" className="text-blue-600 hover:underline">
         메인 페이지로 돌아가기
-      </a>
+      </Link>
     </div>
   );
 } 
