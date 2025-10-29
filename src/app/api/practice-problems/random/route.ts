@@ -1,5 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/index';
 import { NextResponse } from 'next/server';
 
 export async function GET(req: Request) {
@@ -20,14 +19,9 @@ export async function GET(req: Request) {
       }, { status: 400 });
     }
     
-    console.log('Supabase 클라이언트 생성 중...');
+    console.log('Supabase 클라이언트 사용 중...');
     
-    // 직접 Supabase 클라이언트 생성 (환경 변수 문제 해결)
-    const supabaseUrl = 'https://zvhhjroidnpuxxhskffz.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2aGhqcm9pZG5wdXh4aHNrZmZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDgyNDksImV4cCI6MjA2ODMyNDI0OX0.29sSyISNUcFAUPiZEe96lsJg1kTLwciQUUGQu0s0hYg';
-    const directSupabase = createClient(supabaseUrl, supabaseKey);
-    
-    let query = directSupabase.from('practice_problems').select('*');
+    let query = supabase.from('practice_problems').select('*');
     
     // type 필드로 조회
     query = query.eq('type', type);
