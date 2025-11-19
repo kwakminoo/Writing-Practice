@@ -15,9 +15,9 @@ export default function Navbar() {
   const navItems = [
     { name: "홈", href: "/" },
     { name: "연습 모드", href: "/practice-modes" },
-    { name: "책갈피", href: "/bookmarks" },
-    { name: "구독", href: "/subscription" },
-    { name: "소개", href: "/about" },
+    { name: "책장", href: "/bookmarks" },
+    { name: "코인", href: "/subscription" },
+    { name: "게시판", href: "/board" },
   ];
 
   // 구독 정보 및 코인 정보 조회

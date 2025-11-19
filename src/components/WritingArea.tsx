@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from '../lib/index';
 import { Nanum_Myeongjo } from 'next/font/google';
@@ -24,6 +25,7 @@ function isCopyType(category: string) {
 
 export default function WritingArea({ category, practiceType, isFreeWriting = false, problemId, problemPrompt }: WritingAreaProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const [text, setText] = useState("");
   const [title, setTitle] = useState(""); // 제목 상태 추가
   const [lastFeedbackText, setLastFeedbackText] = useState("");
@@ -92,6 +94,10 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
       if (!session?.access_token) {
         setError('로그인이 필요합니다.');
         setLoading(false);
+        // 1초 후 로그인 페이지로 리다이렉트
+        setTimeout(() => {
+          router.push('/login');
+        }, 1000);
         return;
       }
 
@@ -267,6 +273,11 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
       </div>
       
       <div className="flex flex-col gap-2">
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+            {typeof error === 'string' ? error : error}
+          </div>
+        )}
         <button
           type="submit"
           className="self-end bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 transition-colors shadow"

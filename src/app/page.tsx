@@ -95,7 +95,6 @@ export default function Home() {
 					</>
 				)}
 				<div className="flex flex-col items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-					<span>AI 피드백, 다크모드, 모바일 지원</span>
 				</div>
 			</main>
 

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
 import { SUBSCRIPTION_PLANS } from "../../types/subscription";
@@ -21,24 +22,74 @@ interface Writing {
   };
 }
 
+interface CommunityPost {
+  id: string;
+  title: string;
+  content: string;
+  user_id: string;
+  category: 'fiction' | 'poetry' | 'essay' | 'screenplay' | 'general';
+  view_count: number;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+const categoryLabels = {
+  fiction: '소설',
+  poetry: '시',
+  essay: '에세이',
+  screenplay: '시나리오',
+  general: '일반',
+};
+
+const categoryColors = {
+  fiction: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300',
+  poetry: 'bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300',
+  essay: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+  screenplay: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
+  general: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
+};
+
 export default function BookmarksPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'my-books' | 'library'>('my-books');
+  
+  // 내 책장 관련 상태
   const [writings, setWritings] = useState<Writing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [writingsLoading, setWritingsLoading] = useState(true);
+  const [writingsError, setWritingsError] = useState<string | null>(null);
   const [selectedWriting, setSelectedWriting] = useState<Writing | null>(null);
   const [subscription, setSubscription] = useState<any>(null);
+  
+  // 도서관 관련 상태
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showWriteForm, setShowWriteForm] = useState(false);
+  const [writeTitle, setWriteTitle] = useState("");
+  const [writeContent, setWriteContent] = useState("");
+  const [writeCategory, setWriteCategory] = useState<'fiction' | 'poetry' | 'essay' | 'screenplay' | 'general'>('general');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) {
-      fetchWritings();
-      fetchSubscription();
+      if (activeTab === 'my-books') {
+        fetchWritings();
+        fetchSubscription();
+      } else {
+        fetchPosts();
+      }
     }
-  }, [user]);
+  }, [user, activeTab, page, selectedCategory]);
 
   const fetchWritings = async () => {
     try {
-      setLoading(true);
+      setWritingsLoading(true);
       const { data, error } = await supabase
         .from('user_writings')
         .select('*')
@@ -47,16 +98,42 @@ export default function BookmarksPage() {
 
       if (error) {
         console.error('글 목록 조회 오류:', error);
-        setError('글 목록을 불러오는데 실패했습니다.');
+        setWritingsError('글 목록을 불러오는데 실패했습니다.');
         return;
       }
 
       setWritings(data || []);
     } catch (err) {
       console.error('API 오류:', err);
-      setError('서버 오류가 발생했습니다.');
+      setWritingsError('서버 오류가 발생했습니다.');
     } finally {
-      setLoading(false);
+      setWritingsLoading(false);
+    }
+  };
+
+  const fetchPosts = async () => {
+    try {
+      setPostsLoading(true);
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+
+      const categoryParam = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
+      const res = await fetch(`/api/community?page=${page}&limit=10${categoryParam}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setPosts(data.posts || []);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        setPostsError(data.error || '게시글 목록을 불러오는데 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('게시글 목록 조회 오류:', err);
+      setPostsError('서버 오류가 발생했습니다.');
+    } finally {
+      setPostsLoading(false);
     }
   };
 
@@ -80,6 +157,57 @@ export default function BookmarksPage() {
     }
   };
 
+  const handleWriteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      router.push('/login');
+      return;
+    }
+
+    if (!writeTitle.trim() || !writeContent.trim()) {
+      alert('제목과 내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+
+      const res = await fetch('/api/community', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: writeTitle,
+          content: writeContent,
+          category: writeCategory,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setShowWriteForm(false);
+        setWriteTitle("");
+        setWriteContent("");
+        setWriteCategory('general');
+        fetchPosts();
+      } else {
+        alert(data.error || '게시글 작성에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('게시글 작성 오류:', err);
+      alert('서버 오류가 발생했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('ko-KR', {
@@ -91,8 +219,33 @@ export default function BookmarksPage() {
     });
   };
 
+  const formatDateShort = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 7) {
+      return date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } else if (days > 0) {
+      return `${days}일 전`;
+    } else if (hours > 0) {
+      return `${hours}시간 전`;
+    } else if (minutes > 0) {
+      return `${minutes}분 전`;
+    } else {
+      return '방금 전';
+    }
+  };
+
   const getWritingTitle = (writing: Writing) => {
-    // 현재는 모든 글을 자유 글쓰기로 처리
     return writing.title || '제목 없음';
   };
 
@@ -120,7 +273,6 @@ export default function BookmarksPage() {
         return;
       }
 
-      // 로컬 상태 업데이트
       setWritings(prevWritings => 
         prevWritings.map(w => 
           w.id === writing.id 
@@ -129,7 +281,6 @@ export default function BookmarksPage() {
         )
       );
 
-      // 선택된 글 상태도 업데이트
       setSelectedWriting(prev => 
         prev && prev.id === writing.id 
           ? { ...prev, is_pinned: newPinStatus }
@@ -143,7 +294,6 @@ export default function BookmarksPage() {
     }
   };
 
-  // 저장된 content에서 "문제:"와 "작성글:"을 분리
   const splitContent = (raw: string): { problemText: string | null; userText: string } => {
     if (!raw) return { problemText: null, userText: '' };
     const problemLabel = '문제:';
@@ -152,7 +302,6 @@ export default function BookmarksPage() {
     const problemIdx = raw.indexOf(problemLabel);
     const userIdx = raw.indexOf(userLabel);
 
-    // 두 라벨 모두 존재할 때
     if (problemIdx !== -1 && userIdx !== -1) {
       const problemPart = raw
         .slice(problemIdx + problemLabel.length, userIdx)
@@ -163,14 +312,79 @@ export default function BookmarksPage() {
       return { problemText: problemPart || null, userText: userPart };
     }
 
-    // "작성글:"만 있는 경우
     if (userIdx !== -1) {
       const userPart = raw.slice(userIdx + userLabel.length).trim();
       return { problemText: null, userText: userPart };
     }
 
-    // 라벨이 없으면 전체를 사용자 글로 처리
     return { problemText: null, userText: raw };
+  };
+
+  const parseProblemPrompt = (promptText: string | null | undefined): {
+    label?: string;
+    desc?: string;
+    prompt?: string;
+    keywords?: string[] | string;
+    category?: string;
+    type?: string;
+  } | null => {
+    if (!promptText) return null;
+    
+    try {
+      const parsed = JSON.parse(promptText);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed;
+      }
+    } catch (e) {
+      return { prompt: promptText };
+    }
+    
+    return null;
+  };
+
+  const renderProblemInfo = (problemData: {
+    label?: string;
+    desc?: string;
+    prompt?: string;
+    keywords?: string[] | string;
+    category?: string;
+    type?: string;
+  } | null) => {
+    if (!problemData) return null;
+
+    return (
+      <div className="mb-4">
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-2">문제</h3>
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 space-y-2">
+          {problemData.label && (
+            <div className="font-bold text-blue-700 dark:text-blue-300">
+              {problemData.label}
+            </div>
+          )}
+          {problemData.desc && (
+            <div className="text-gray-700 dark:text-gray-200 text-sm">
+              {problemData.desc}
+            </div>
+          )}
+          {problemData.prompt && (
+            <div className="text-gray-600 dark:text-gray-300 text-sm mt-2 whitespace-pre-line">
+              {problemData.prompt}
+            </div>
+          )}
+          {problemData.keywords && (
+            Array.isArray(problemData.keywords) && problemData.keywords.length > 0 ? (
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                제시어: {problemData.keywords.join(', ')}
+              </div>
+            ) : typeof problemData.keywords === 'string' && problemData.keywords ? (
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                제시어: {problemData.keywords}
+              </div>
+            ) : null
+          )}
+        </div>
+      </div>
+    );
   };
 
   if (!user) {
@@ -182,7 +396,7 @@ export default function BookmarksPage() {
               로그인이 필요합니다
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              책갈피를 보려면 로그인해주세요.
+              책장을 보려면 로그인해주세요.
             </p>
             <Link
               href="/login"
@@ -201,9 +415,9 @@ export default function BookmarksPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            📚 내 글 목록
+            📚 책장
           </h1>
-          {subscription && (
+          {subscription && activeTab === 'my-books' && (
             <div className="text-right">
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 {SUBSCRIPTION_PLANS.find(p => p.storageTier === subscription.subscription_type)?.name || '무료'} 플랜
@@ -215,117 +429,364 @@ export default function BookmarksPage() {
           )}
         </div>
 
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="text-lg text-gray-600 dark:text-gray-400">
-              글 목록을 불러오는 중...
-            </div>
-          </div>
-        ) : error ? (
-          <div className="text-center py-8">
-            <div className="text-red-600 dark:text-red-400">{error}</div>
-          </div>
-        ) : writings.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-lg text-gray-600 dark:text-gray-400 mb-4">
-              아직 저장된 글이 없습니다.
-            </div>
-            <p className="text-gray-500 dark:text-gray-500">
-              연습 모드에서 글을 작성하고 피드백을 받으면 여기에 저장됩니다.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {writings.map((writing) => (
-              <div
-                key={writing.id}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => handleWritingClick(writing)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2">
-                    {getWritingTitle(writing)}
-                  </h3>
-                  {writing.is_pinned && (
-                    <span className="text-yellow-500 text-sm">📌</span>
-                  )}
-                </div>
-                <p className="text-gray-600 dark:text-gray-400 text-xs mb-2">
-                  {writing.content.substring(0, 100)}...
-                </p>
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
-                  <span>{writing.type}</span>
-                  <span>{formatDate(writing.created_at)}</span>
+        {/* 탭 메뉴 */}
+        <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setActiveTab('my-books')}
+            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${
+              activeTab === 'my-books'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            내 책장
+          </button>
+          <button
+            onClick={() => setActiveTab('library')}
+            className={`px-6 py-3 font-semibold transition-colors border-b-2 ${
+              activeTab === 'library'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+            }`}
+          >
+            도서관
+          </button>
+        </div>
+
+        {/* 내 책장 탭 */}
+        {activeTab === 'my-books' && (
+          <>
+            {writingsLoading ? (
+              <div className="text-center py-8">
+                <div className="text-lg text-gray-600 dark:text-gray-400">
+                  글 목록을 불러오는 중...
                 </div>
               </div>
-            ))}
-          </div>
+            ) : writingsError ? (
+              <div className="text-center py-8">
+                <div className="text-red-600 dark:text-red-400">{writingsError}</div>
+              </div>
+            ) : writings.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-lg text-gray-600 dark:text-gray-400 mb-4">
+                  아직 저장된 글이 없습니다.
+                </div>
+                <p className="text-gray-500 dark:text-gray-500">
+                  연습 모드에서 글을 작성하고 피드백을 받으면 여기에 저장됩니다.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {writings.map((writing) => (
+                  <div
+                    key={writing.id}
+                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => handleWritingClick(writing)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2">
+                        {getWritingTitle(writing)}
+                      </h3>
+                      {writing.is_pinned && (
+                        <span className="text-yellow-500 text-sm">📌</span>
+                      )}
+                    </div>
+                    <div className="text-gray-600 dark:text-gray-400 text-xs mb-2 space-y-1">
+                      {(() => {
+                        const parts = splitContent(writing.content);
+                        const problemPromptText = writing.practice_problems?.prompt || parts.problemText;
+                        const problemData = parseProblemPrompt(problemPromptText);
+                        
+                        return (
+                          <>
+                            {problemData && (
+                              <div className="text-blue-700 dark:text-blue-300 font-medium">
+                                {problemData.label && `[${problemData.label}]`}
+                                {problemData.prompt && (
+                                  <span className="ml-1 font-normal text-gray-600 dark:text-gray-400">
+                                    {problemData.prompt.length > 60 
+                                      ? problemData.prompt.substring(0, 60) + '...'
+                                      : problemData.prompt}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {parts.userText && (
+                              <div className="line-clamp-2">
+                                {parts.userText.length > 100
+                                  ? parts.userText.substring(0, 100) + '...'
+                                  : parts.userText}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
+                      <span>{writing.type}</span>
+                      <span>{formatDate(writing.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-                 {/* 글 상세 보기 모달 */}
-         {selectedWriting && (
-           <div className="fixed inset-0 bg-gray-900/20 flex items-center justify-center z-50 p-4 backdrop-blur-[1px]">
-             <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-               {/* 고정 헤더 */}
-               <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10">
-                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                   {getWritingTitle(selectedWriting)}
-                 </h2>
-                 <button
-                   onClick={handleCloseDetail}
-                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xl font-bold"
-                 >
-                   ✕
-                 </button>
-               </div>
-               
-               {/* 스크롤 가능한 내용 */}
-               <div className="flex-1 overflow-y-auto p-6">
-                 
-                 {(() => {
-                   const parts = splitContent(selectedWriting.content);
-                   const problemText = selectedWriting.practice_problems?.prompt || parts.problemText;
-                   return (
-                     <>
-                       {problemText && (
-                         <div className="mb-4">
-                           <h3 className="font-semibold text-gray-900 dark:text-white mb-2">문제</h3>
-                           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                             <pre className="whitespace-pre-wrap text-blue-800 dark:text-blue-200 text-sm">{problemText}</pre>
-                           </div>
-                         </div>
-                       )}
-                       <div className="mb-4">
-                         <h3 className="font-semibold text-gray-900 dark:text-white mb-2">작성 내용</h3>
-                         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                           <pre className="whitespace-pre-wrap text-gray-900 dark:text-gray-100 text-sm">{parts.userText}</pre>
-                         </div>
-                       </div>
-                     </>
-                   );
-                 })()}
-                 
-                 <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                   <span>작성일: {formatDate(selectedWriting.created_at)}</span>
-                   <div className="flex items-center gap-4">
-                     <span>글자 수: {selectedWriting.content.length}자</span>
-                     <button
-                       onClick={() => handleTogglePin(selectedWriting)}
-                       className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                         selectedWriting.is_pinned
-                           ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                           : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                       }`}
-                     >
-                       {selectedWriting.is_pinned ? '📌 고정 해제' : '📌 영구 저장'}
-                     </button>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           </div>
-         )}
+        {/* 도서관 탭 */}
+        {activeTab === 'library' && (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex-1"></div>
+              {user && (
+                <button
+                  onClick={() => setShowWriteForm(!showWriteForm)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  {showWriteForm ? '작성 취소' : '글쓰기'}
+                </button>
+              )}
+            </div>
+
+            {/* 카테고리 필터 */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedCategory === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                전체
+              </button>
+              {Object.entries(categoryLabels).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedCategory(key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedCategory === key
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {postsError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg mb-4">
+                {postsError}
+              </div>
+            )}
+
+            {showWriteForm && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">글 작성</h2>
+                <form onSubmit={handleWriteSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      제목
+                    </label>
+                    <input
+                      type="text"
+                      id="title"
+                      value={writeTitle}
+                      onChange={(e) => setWriteTitle(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white"
+                      placeholder="제목을 입력하세요"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="content" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      내용
+                    </label>
+                    <textarea
+                      id="content"
+                      value={writeContent}
+                      onChange={(e) => setWriteContent(e.target.value)}
+                      rows={10}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white resize-y"
+                      placeholder="내용을 입력하세요"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      카테고리
+                    </label>
+                    <select
+                      id="category"
+                      value={writeCategory}
+                      onChange={(e) => setWriteCategory(e.target.value as typeof writeCategory)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white"
+                      required
+                    >
+                      {Object.entries(categoryLabels).map(([key, label]) => (
+                        <option key={key} value={key}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowWriteForm(false);
+                        setWriteTitle("");
+                        setWriteContent("");
+                      }}
+                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? '작성 중...' : '작성하기'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {postsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">로딩 중...</p>
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <p className="text-gray-600 dark:text-gray-400">작성된 글이 없습니다.</p>
+                {user && (
+                  <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                    첫 번째 글을 작성해보세요!
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {posts.map((post) => (
+                      <Link
+                        key={post.id}
+                        href={`/community/${post.id}`}
+                        className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${categoryColors[post.category]}`}>
+                                {categoryLabels[post.category]}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 truncate">
+                              {post.title}
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-2">
+                              {post.content}
+                            </p>
+                            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                              <span>익명</span>
+                              <span>{formatDateShort(post.created_at)}</span>
+                              <span>조회 {post.view_count || 0}</span>
+                              <span>댓글 {post.comments_count || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex justify-center gap-2 mt-6">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      이전
+                    </button>
+                    <span className="px-4 py-2 text-gray-600 dark:text-gray-400">
+                      {page} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      다음
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* 글 상세 보기 모달 (내 책장 전용) */}
+        {selectedWriting && activeTab === 'my-books' && (
+          <div className="fixed inset-0 bg-gray-900/20 flex items-center justify-center z-50 p-4 backdrop-blur-[1px]">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {getWritingTitle(selectedWriting)}
+                </h2>
+                <button
+                  onClick={handleCloseDetail}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xl font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6">
+                {(() => {
+                  const parts = splitContent(selectedWriting.content);
+                  const problemPromptText = selectedWriting.practice_problems?.prompt || parts.problemText;
+                  const problemData = parseProblemPrompt(problemPromptText);
+                  
+                  return (
+                    <>
+                      {problemData && renderProblemInfo(problemData)}
+                      <div className="mb-4">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-2">작성 내용</h3>
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                          <pre className="whitespace-pre-wrap text-gray-900 dark:text-gray-100 text-sm">{parts.userText}</pre>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+                
+                <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                  <span>작성일: {formatDate(selectedWriting.created_at)}</span>
+                  <div className="flex items-center gap-4">
+                    <span>글자 수: {selectedWriting.content.length}자</span>
+                    <button
+                      onClick={() => handleTogglePin(selectedWriting)}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                        selectedWriting.is_pinned
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {selectedWriting.is_pinned ? '📌 고정 해제' : '📌 영구 저장'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-} 
+}
