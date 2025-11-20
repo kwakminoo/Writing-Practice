@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import { AuthProvider } from "../contexts/AuthContext";
 import QueryProvider from "../providers/QueryProvider";
 
@@ -92,7 +91,6 @@ export default function RootLayout({
             <div className="min-h-[80vh] flex flex-col">
               {children}
             </div>
-            <Footer />
           </AuthProvider>
         </QueryProvider>
       </body>

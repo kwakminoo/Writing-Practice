@@ -472,7 +472,7 @@ export default function BookmarksPage() {
                   아직 저장된 글이 없습니다.
                 </div>
                 <p className="text-gray-500 dark:text-gray-500">
-                  연습 모드에서 글을 작성하고 피드백을 받으면 여기에 저장됩니다.
+                  훈련소에서 글을 작성하고 피드백을 받으면 여기에 저장됩니다.
                 </p>
               </div>
             ) : (

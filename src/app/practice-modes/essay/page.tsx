@@ -154,7 +154,7 @@ export default function EssayPractice() {
       {mode === 'practice' && (
         <>
           <div className="mb-4">
-            <h3 className="text-xl font-semibold mb-2">연습 방식 선택/추가</h3>
+            <h3 className="text-xl font-semibold mb-2">훈련 방식 선택/추가</h3>
             <div className="flex flex-wrap gap-2">
               {practiceTypes.map((type) => (
                 <button

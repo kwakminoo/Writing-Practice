@@ -46,6 +46,8 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
 
   // 피드백 요청 중 상태 추가
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  // 진행률 상태 추가
+  const [progress, setProgress] = useState(0);
 
   // textarea 높이 자동 조절
   useEffect(() => {
@@ -87,13 +89,24 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
     setBasicFeedback(null);
     setError(null);
     setLoading(true);
+    setProgress(0);
+    
+    // 진행률 시뮬레이션
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 90) return prev; // 90%에서 멈춤
+        return prev + Math.random() * 10; // 랜덤하게 증가
+      });
+    }, 200);
     
     try {
       // 사용자 토큰 가져오기
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
+        clearInterval(progressInterval);
         setError('로그인이 필요합니다.');
         setLoading(false);
+        setProgress(0);
         // 1초 후 로그인 페이지로 리다이렉트
         setTimeout(() => {
           router.push('/login');
@@ -101,12 +114,16 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
         return;
       }
 
+      setProgress(30); // 요청 전송 시작
+
       // 1. 피드백 요청
       const endpoint = feedbackType === 'ai' ? "/api/ai-feedback" : "/api/basic-feedback";
       const body = feedbackType === 'ai' 
         ? { content: text, category, practiceType, problemPrompt: isFreeWriting ? title : problemPrompt }
         : { content: text, category };
         
+      setProgress(50); // 요청 전송 완료, 서버 처리 중
+      
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { 
@@ -115,9 +132,15 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
         },
         body: JSON.stringify(body),
       });
+      
+      setProgress(80); // 응답 수신 중
       const data = await res.json();
       
+      clearInterval(progressInterval);
+      setProgress(100); // 완료
+      
       if (data.error === 'Insufficient coins') {
+        setProgress(0);
         setError(
           <div className="text-red-600 dark:text-red-400">
             {data.message || '코인이 부족합니다.'}
@@ -154,7 +177,7 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
               body: JSON.stringify({
                 user_id: user.id,
                 content: problemPrompt ? `문제: ${problemPrompt}\n\n작성글: ${text}` : text,
-                title: isFreeWriting ? title : category, // 연습 방식 이름을 제목으로 사용
+                title: title.trim() || category, // 사용자가 입력한 제목이 있으면 사용, 없으면 category 사용
                 type: practiceType || category,
                 problem_id: problemId, // 연습문제 ID가 있으면 저장
               }),
@@ -172,12 +195,20 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
         // 피드백 타입과 함께 저장하여 타입 변경 시 감지
         setLastFeedbackText(`${text}_${feedbackType}`);
       } else {
+        clearInterval(progressInterval);
+        setProgress(0);
         setError(data.error || `${feedbackType === 'ai' ? 'AI' : '기본'} 피드백을 받아오지 못했습니다.`);
       }
     } catch (err) {
+      clearInterval(progressInterval);
+      setProgress(0);
       setError(`${feedbackType === 'ai' ? 'AI' : '기본'} 서버 요청 중 오류가 발생했습니다.`);
     } finally {
       setLoading(false);
+      // 완료 후 잠시 100% 유지 후 초기화
+      setTimeout(() => {
+        setProgress(0);
+      }, 500);
     }
   };
 
@@ -222,24 +253,22 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full max-w-3xl mx-auto">
-      {/* 자유 글쓰기일 때만 제목 입력 필드 표시 */}
-      {isFreeWriting && (
-        <div className="w-full max-w-3xl mx-auto">
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            제목
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="글의 제목을 입력하세요..."
-            className={`${novelFont.className} antialiased w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white`}
-            style={{ textRendering: "optimizeLegibility" }}
-            required
-          />
-        </div>
-      )}
+      {/* 제목 입력 필드 (연습 문제 모드와 자유 글쓰기 모두 표시) */}
+      <div className="w-full max-w-3xl mx-auto">
+        <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          제목
+        </label>
+        <input
+          type="text"
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="글의 제목을 입력하세요..."
+          className={`${novelFont.className} antialiased w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-gray-900 dark:text-white`}
+          style={{ textRendering: "optimizeLegibility" }}
+          required
+        />
+      </div>
       
       <textarea
         ref={textareaRef}
@@ -278,13 +307,50 @@ export default function WritingArea({ category, practiceType, isFreeWriting = fa
             {typeof error === 'string' ? error : error}
           </div>
         )}
-        <button
-          type="submit"
-          className="self-end bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 transition-colors shadow"
-          disabled={loading || submitted || text.trim() === '' || `${text}_${feedbackType}` === lastFeedbackText}
-        >
-          {loading ? `${feedbackType === 'ai' ? 'AI' : '기본'} 피드백 생성 중${loadingDots}` : '피드백 받기'}
-        </button>
+        {loading ? (
+          // 로딩 중일 때 게이지바 표시
+          <div className="self-end w-full max-w-xs">
+            <div className="relative bg-gray-200 dark:bg-gray-700 rounded-lg h-12 overflow-hidden shadow-lg">
+              {/* 게이지바 배경 */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 transition-all duration-300 ease-out rounded-lg"
+                style={{ 
+                  width: `${progress}%`,
+                  transition: 'width 0.3s ease-out'
+                }}
+              >
+                {/* 애니메이션 효과 */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+              </div>
+              {/* 텍스트 오버레이 */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-white font-semibold text-sm z-10 drop-shadow-md">
+                  {progress < 30 ? '요청 전송 중...' : 
+                   progress < 50 ? '서버 처리 중...' : 
+                   progress < 80 ? '분석 중...' : 
+                   progress < 100 ? '거의 완료...' : 
+                   '완료!'} {Math.round(progress)}%
+                </span>
+              </div>
+              {/* 진행률 표시 바 */}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-800/30">
+                <div 
+                  className="h-full bg-blue-300 transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // 일반 버튼
+          <button
+            type="submit"
+            className="self-end bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-6 py-2 transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={submitted || text.trim() === '' || title.trim() === '' || `${text}_${feedbackType}` === lastFeedbackText}
+          >
+            피드백 받기
+          </button>
+        )}
       </div>
 
       {aiFeedback && !loading && (

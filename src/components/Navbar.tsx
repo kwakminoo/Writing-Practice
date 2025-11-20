@@ -13,8 +13,7 @@ export default function Navbar() {
   const [userCoins, setUserCoins] = useState<number>(0);
   
   const navItems = [
-    { name: "홈", href: "/" },
-    { name: "연습 모드", href: "/practice-modes" },
+    { name: "훈련장", href: "/practice-modes" },
     { name: "책장", href: "/bookmarks" },
     { name: "코인", href: "/subscription" },
     { name: "게시판", href: "/board" },

@@ -12,7 +12,7 @@ const categories = [
 export default function PracticeModes() {
   return (
     <div className="max-w-2xl mx-auto py-12 px-4">
-      <h2 className="text-3xl font-bold mb-6 text-center">연습 모드 선택</h2>
+      <h2 className="text-3xl font-bold mb-6 text-center">훈련 선택</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8">
         {categories.map((cat) => (
           <Link
